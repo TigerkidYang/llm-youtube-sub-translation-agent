@@ -50,30 +50,40 @@ CHUNK_TRANSLATION_SYSTEM_PROMPT = """
 You are an AI assistant specialized in translating subtitle chunks line by line into **{target_language}**.
 You will receive:
 1.  A "Translation Memory" containing a video summary and key terminology for context and consistency.
-2.  A "Current Subtitle Chunk" where each line is prefixed with its original SRT index number (e.g., "101. Original text").
+2.  A "Current Subtitle Chunk" where each numbered entry is prefixed with its original SRT index number (e.g., "101. Original single line of text"). Each numbered entry in the input will now be a single line of text due to preprocessing.
 
 Your task is to:
-1.  Translate EACH numbered line from the "Current Subtitle Chunk" into **{target_language}**.
-2.  **CRITICAL**: Your output MUST preserve the original SRT index number for EACH translated line, followed by a period and a space. For example, if the input is "101. Hello world", your output for that line must be "101. [Translated text for Hello world]".
-3.  The number of lines in your output MUST EXACTLY MATCH the number of lines in the input chunk. Do NOT merge lines. Do NOT split lines. Do NOT omit any lines.
-4.  Use the "Translation Memory" to ensure consistency in terminology and tone.
-5.  Ensure translations are natural-sounding, accurate, and adhere to subtitle best practices (e.g., appropriate length, clear meaning).
-6.  If a line in the input chunk is purely a timestamp, formatting instruction, or clearly should not be translated (e.g., "♪ music ♪"), reproduce it as is, still prefixed with its original SRT index number.
-7.  Only output the translated (or reproduced) numbered lines. Do not add any other text, explanations, or pleasantries before or after the block of translated lines.
+1.  Translate EACH numbered entry from the "Current Subtitle Chunk" into **{target_language}**. Each translated entry should also ideally be a single line of text. If a translation naturally becomes very long, you may use newlines within that single numbered entry, but the entire translation for that number must still start with the original number.
+2.  **CRITICAL FORMATTING RULES**:
+    a.  **Plain Text Output**: Your entire response for the translated chunk MUST be plain text. Do NOT use any Markdown formatting, especially do NOT use code block delimiters like ```.
+    b.  **Preserve Line Numbers**: EACH translated entry MUST begin with its original SRT index number, followed by a period, and then a single space. For example, if an input line is "101. Original text", your translated output for that entry MUST start with "101. [Translated text]".
+    c.  **Match Entry Count**: The number of numbered entries in your output MUST EXACTLY MATCH the number of numbered entries in the input chunk. Do NOT merge distinct numbered entries. Do NOT split a single numbered entry into multiple new numbered entries. Do NOT omit any numbered entries.
+3.  Use the "Translation Memory" to ensure consistency in terminology and tone.
+4.  Ensure translations are natural-sounding, accurate, and adhere to subtitle best practices (e.g., appropriate length for a single line where possible, clear meaning).
+5.  If a numbered entry in the input chunk is purely a timestamp, formatting instruction, or clearly should not be translated (e.g., "♪ music ♪"), reproduce it as is, still prefixed with its original SRT index number.
+6.  **Output ONLY the translated (or reproduced) numbered lines**. Do not add any other text, explanations, greetings, or pleasantries before or after the block of translated lines.
 
-Example Input Chunk:
+**Example Input Chunk (each numbered entry is a single line of text):**
 ```
-101. This is a sentence.
+101. This is a sentence that was originally on one or more lines, now combined.
 102. Another important point.
 103. ♪ instrumental music ♪
 ```
 
-Example Output (if target_language is French):
+**Example CORRECT Output (if target_language is French):**
 ```
-101. Ceci est une phrase.
+101. Ceci est une phrase qui était à l'origine sur une ou plusieurs lignes, maintenant combinée.
 102. Un autre point important.
 103. ♪ musique instrumentale ♪
 ```
+
+**Example INCORRECT Output (shows markdown and missing numbers):**
+```plaintext
+101. Ceci est une phrase.
+Un autre point important.  <-- INCORRECT: Missing number 102.
+```
+
+**REMEMBER: NO MARKDOWN (NO ```), AND EVERY TRANSLATED ENTRY MUST START WITH ITS ORIGINAL NUMBER, PERIOD, AND SPACE. THE COUNT OF NUMBERED ENTRIES MUST MATCH THE INPUT.**
 """
 
 CHUNK_TRANSLATION_HUMAN_PROMPT = """
@@ -81,9 +91,9 @@ CHUNK_TRANSLATION_HUMAN_PROMPT = """
 {translation_memory}
 
 ---
-**Current Subtitle Chunk to Translate into {target_language} (Preserve Line Numbers):**
+**Current Subtitle Chunk to Translate into {target_language} (Strictly Preserve Line Numbers and Format as Plain Text; each input line is a single subtitle entry):**
 {numbered_subtitle_lines}
 ---
 
-Please provide the translation for the chunk above. Remember to prefix each translated line with its original SRT index number.
+Please provide the translation for the chunk above.
 """
