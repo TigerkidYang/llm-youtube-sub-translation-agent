@@ -1,12 +1,17 @@
 from youtube_transcript_api import YouTubeTranscriptApi, NoTranscriptFound, TranscriptsDisabled
 import re
 import os
+import time # Added for retry delay
 from langchain_core.tools import tool
 import logging
 
 # Configure logging
 # Using a distinct logger name for this module can be helpful for filtering logs.
 logger = logging.getLogger(__name__)
+
+# Retry parameters
+MAX_RETRIES = 20
+RETRY_DELAY_SECONDS = 3
 if not logger.hasHandlers(): # Avoid adding multiple handlers if this module is reloaded
     handler = logging.StreamHandler()
     formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(name)s - %(module)s.%(funcName)s:%(lineno)d - %(message)s')
@@ -76,15 +81,28 @@ def list_available_languages(video_url: str) -> list:
     video_id = _extract_video_id(video_url) 
     logger.debug(f"Extracted video ID: {video_id} for URL: {video_url}")
     
-    try:
-        transcript_list_obj = YouTubeTranscriptApi.list_transcripts(video_id)
-        logger.debug(f"Successfully listed transcripts for video ID {video_id}")
-    except (TranscriptsDisabled, NoTranscriptFound) as e:
-        logger.warning(f"Error listing transcripts for video ID {video_id} (URL: {video_url}): {type(e).__name__} - {str(e)}")
-        raise e
-    except Exception as e:
-        logger.error(f"Unexpected error listing transcripts for video ID {video_id} (URL: {video_url}): {str(e)}", exc_info=True)
-        raise Exception(f"Failed to list transcripts for video ID {video_id}: {str(e)}")
+    transcript_list_obj = None
+    for attempt in range(MAX_RETRIES):
+        try:
+            logger.info(f"Attempt {attempt + 1}/{MAX_RETRIES} to list available languages for video ID {video_id}...")
+            transcript_list_obj = YouTubeTranscriptApi.list_transcripts(video_id)
+            logger.debug(f"Successfully listed transcripts for video ID {video_id} on attempt {attempt + 1}.")
+            break # Success, exit retry loop
+        except (TranscriptsDisabled, NoTranscriptFound) as e:
+            logger.warning(f"Error listing transcripts for video ID {video_id} (URL: {video_url}) on attempt {attempt + 1}: {type(e).__name__} - {str(e)}. Not retrying for this type of error.")
+            raise e # Re-raise immediately, no retry for these specific errors
+        except Exception as e:
+            logger.error(f"Attempt {attempt + 1}/{MAX_RETRIES} failed to list transcripts for video ID {video_id} (URL: {video_url}): {str(e)}", exc_info=True)
+            if attempt + 1 < MAX_RETRIES:
+                logger.info(f"Retrying in {RETRY_DELAY_SECONDS} seconds...")
+                time.sleep(RETRY_DELAY_SECONDS)
+            else:
+                logger.error(f"Maximum retry attempts ({MAX_RETRIES}) reached for listing transcripts for video ID {video_id}. Raising last exception.")
+                raise Exception(f"Failed to list transcripts for video ID {video_id} after {MAX_RETRIES} attempts: {str(e)}")
+    if transcript_list_obj is None:
+        # This case should ideally be covered by exceptions in the loop, but as a fallback:
+        logger.error(f"Failed to obtain transcript list for {video_id} after all retries, and no specific exception was re-raised. This indicates an unexpected state.")
+        raise Exception(f"Unknown error: Failed to list transcripts for video ID {video_id} after {MAX_RETRIES} attempts and no specific error was propagated.")
 
     available_langs = []
     for transcript_lang in transcript_list_obj:
@@ -131,16 +149,29 @@ def fetch_youtube_srt(video_url: str, language_code: str, output_srt_path: str) 
     video_id = _extract_video_id(video_url)
     logger.debug(f"Extracted video ID: {video_id} for URL: {video_url}")
 
-    try:
-        # Fetches a list of dictionaries: [{'text': '...', 'start': ..., 'duration': ...}, ...]
-        transcript_entries = YouTubeTranscriptApi.get_transcript(video_id, languages=[language_code])
-        logger.debug(f"Successfully fetched transcript data for video ID {video_id}, language {language_code}. Entries: {len(transcript_entries)}")
-    except (NoTranscriptFound, TranscriptsDisabled) as e:
-        logger.warning(f"Error fetching transcript for video ID {video_id}, lang {language_code} (URL: {video_url}): {type(e).__name__} - {str(e)}")
-        raise e # Re-raise specific exceptions
-    except Exception as e:
-        logger.error(f"Unexpected error fetching transcript for video ID {video_id}, lang {language_code} (URL: {video_url}): {str(e)}", exc_info=True)
-        raise Exception(f"Failed to fetch transcript for video ID {video_id} (lang: {language_code}): {str(e)}")
+    transcript_entries = None
+    for attempt in range(MAX_RETRIES):
+        try:
+            logger.info(f"Attempt {attempt + 1}/{MAX_RETRIES} to fetch transcript for video ID {video_id}, language {language_code}...")
+            # Fetches a list of dictionaries: [{'text': '...', 'start': ..., 'duration': ...}, ...]
+            transcript_entries = YouTubeTranscriptApi.get_transcript(video_id, languages=[language_code])
+            logger.debug(f"Successfully fetched transcript data on attempt {attempt + 1} for video ID {video_id}, language {language_code}. Entries: {len(transcript_entries)}")
+            break # Success, exit retry loop
+        except (NoTranscriptFound, TranscriptsDisabled) as e:
+            logger.warning(f"Error fetching transcript for video ID {video_id}, lang {language_code} (URL: {video_url}) on attempt {attempt + 1}: {type(e).__name__} - {str(e)}. Not retrying for this type of error.")
+            raise e # Re-raise immediately, no retry for these specific errors
+        except Exception as e:
+            logger.error(f"Attempt {attempt + 1}/{MAX_RETRIES} failed to fetch transcript for video ID {video_id}, lang {language_code} (URL: {video_url}): {str(e)}", exc_info=True)
+            if attempt + 1 < MAX_RETRIES:
+                logger.info(f"Retrying in {RETRY_DELAY_SECONDS} seconds...")
+                time.sleep(RETRY_DELAY_SECONDS)
+            else:
+                logger.error(f"Maximum retry attempts ({MAX_RETRIES}) reached for fetching transcript for video ID {video_id}, lang {language_code}. Raising last exception.")
+                raise Exception(f"Failed to fetch transcript for video ID {video_id} (lang: {language_code}) after {MAX_RETRIES} attempts: {str(e)}")
+    if transcript_entries is None:
+        # This case should ideally be covered by exceptions in the loop, but as a fallback:
+        logger.error(f"Failed to obtain transcript entries for {video_id}, lang {language_code} after all retries, and no specific exception was re-raised. This indicates an unexpected state.")
+        raise Exception(f"Unknown error: Failed to fetch transcript for video ID {video_id} (lang: {language_code}) after {MAX_RETRIES} attempts and no specific error was propagated.")
 
     if not transcript_entries: # Should be redundant if API raises NoTranscriptFound correctly
         logger.warning(f"Transcript data for video ID {video_id} (lang: {language_code}) was unexpectedly empty after fetch.")
