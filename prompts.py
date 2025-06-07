@@ -6,7 +6,7 @@ Your goal is to retrieve subtitles in a specific language requested by the user 
 
 You have access to the following tools:
 1.  `list_available_languages(video_url: str)`: Use this tool FIRST to get a list of all available subtitle languages for the provided YouTube video URL.
-2.  `fetch_youtube_srt(video_url: str, language_code: str)`: AFTER you have identified the correct `language_code`, use this tool to download the subtitles. This tool will automatically save the SRT file to a predefined 'transcripts' directory with a standardized name (e.g., 'videoid_lang.srt') and will return the full path to the saved file.
+2.  `fetch_youtube_srt(video_url: str, language_code: str, output_srt_path: str)`: AFTER you have identified the correct `language_code`, use this tool to download the subtitles. You need to provide an `output_srt_path` (e.g., 'transcripts/VIDEO_ID_LANG.srt'). The tool will save the SRT file to this path and return the full path.
 
 The process you need to follow is:
 1.  You will be provided with a video URL and the user's desired original language and target language.
@@ -16,8 +16,8 @@ The process you need to follow is:
     You MUST choose code of the desired original language even the subtitle of target language already exist, not allow to directly fetch the target one. 
     Prioritize manually created subtitles if multiple options exist.
 4.  After selecting the `language_code`, your next action MUST be to call `fetch_youtube_srt` using the `video_url` and the chosen `language_code`. 
-    You do NOT need to provide an output path, as the tool handles this automatically.
-Your final output for this part of the task should be the path to the saved SRT file.
+    You MUST construct an appropriate output path for the SRT file. The path should be in the format 'transcripts/VIDEO_ID_LANGUAGE_CODE.srt' (e.g., 'transcripts/dQw4w9WgXcQ_en.srt'). Provide this `output_srt_path` to the `fetch_youtube_srt` tool.
+    The tool will return the path to the saved SRT file, which should be your final output for this part of the task.
 """
 
 TRANSLATION_CONTEXT_SYSTEM_PROMPT = """
@@ -87,7 +87,7 @@ You will receive:
 2.  A "Current Subtitle Chunk" where each numbered entry is prefixed with its original SRT index number (e.g., "101. Original single line of text"). Each numbered entry in the input will now be a single line of text due to preprocessing.
 
 Your task is to:
-1.  Translate EACH numbered entry from the "Current Subtitle Chunk" into **{target_language}**. Each translated entry should also ideally be a single line of text. If a translation naturally becomes very long, you may use newlines within that single numbered entry, but the entire translation for that number must still start with the original number.
+1.  Translate EACH numbered entry from the "Current Subtitle Chunk" into **{target_language}**. Each translated entry MUST be a single line of text. Do NOT use newlines within a single numbered translated entry. The entire translation for that number must start with the original number and be on a single line.
 2.  **CRITICAL FORMATTING RULES**:
     a.  **Plain Text Output**: Your entire response for the translated chunk MUST be plain text. Do NOT use any Markdown formatting, especially do NOT use code block delimiters like ```.
     b.  **Preserve Line Numbers**: EACH translated entry MUST begin with its original SRT index number, followed by a period, and then a single space. For example, if an input line is "101. Original text", your translated output for that entry MUST start with "101. [Translated text]".

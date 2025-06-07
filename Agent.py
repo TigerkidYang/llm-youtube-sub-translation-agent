@@ -4,6 +4,13 @@ from langgraph.graph.message import add_messages
 from get_sub import list_available_languages, fetch_youtube_srt # Assuming this is in the same directory
 from langgraph.graph import StateGraph, START, END
 from dotenv import load_dotenv
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s - %(levelname)s - %(name)s - %(module)s.%(funcName)s:%(lineno)d - %(message)s',
+                    datefmt='%Y-%m-%d %H:%M:%S')
+logger = logging.getLogger(__name__)
 from langchain_core.messages import BaseMessage, AIMessage, ToolMessage, HumanMessage, SystemMessage
 from langgraph.prebuilt import ToolNode
 from langchain_openai import ChatOpenAI
@@ -108,6 +115,8 @@ def input_node(state: AgentState) -> AgentState:
     target_language = input('What language sub do you want? ')
     state['target_language'] = target_language
 
+    logger.info(f"User input received: Video Link: {video_link}, Original: {original_language}, Target: {target_language}")
+
     system_prompt_text = SUBTITLE_EXTRACTION_SYSTEM_PROMPT
     human_message_content = (
         f"Video URL: {state['video_link']}, "
@@ -166,10 +175,10 @@ def should_continue_extraction(state: AgentState) -> str:
     return "end_process"
 
 def prepare_translation_node(state: AgentState) -> dict:
-    print("--- Preparing Translation ---")
+    logger.info("Preparing translation...")
     original_srt_path = state.get('original_srt_path')
     if not original_srt_path or not os.path.exists(original_srt_path):
-        print(f"Error: Original SRT file not found at {original_srt_path}")
+        logger.error(f"Error reading SRT file {original_srt_path}: File not found")
         return {"messages": [SystemMessage(content=f"Error: Original SRT file not found. Cannot proceed.")]}
     with open(original_srt_path, 'r', encoding='utf-8') as f: srt_content = f.read()
     
@@ -182,6 +191,7 @@ def prepare_translation_node(state: AgentState) -> dict:
     
     sub_chunks_list = ["\n".join(numbered_texts_for_chunking[i:i + CHUNK_SIZE]) 
                        for i in range(0, len(numbered_texts_for_chunking), CHUNK_SIZE)]
+    logger.info(f"Created {len(sub_chunks_list)} chunks of size {CHUNK_SIZE}.")
     return {
         "sub_list": sub_list, "sub_chunks_list": sub_chunks_list, 
         "current_chunk_index": 0, "translated_chunks_list": [], 
@@ -189,7 +199,7 @@ def prepare_translation_node(state: AgentState) -> dict:
     }
 
 def generate_translation_context_node(state: AgentState) -> dict:
-    print("--- Generating Translation Context ---")
+    logger.info("Generating translation context...")
     sub_list, target_language = state.get('sub_list'), state.get('target_language')
     if not sub_list: return {"messages": [SystemMessage(content="Error: Subtitle list not found.")]}
     if not target_language: return {"messages": [SystemMessage(content="Error: Target language not found.")]}
@@ -200,29 +210,25 @@ def generate_translation_context_node(state: AgentState) -> dict:
     sys_prompt = TRANSLATION_CONTEXT_SYSTEM_PROMPT.format(target_language=target_language)
     human_prompt = TRANSLATION_CONTEXT_HUMAN_PROMPT.format(subtitle_full_text=full_text, target_language=target_language)
     ai_response = translation_llm.invoke([SystemMessage(content=sys_prompt), HumanMessage(content=human_prompt)])
+    logger.info(f"LLM generated translation memory (first 200 chars): {ai_response.content[:200]}...")
     return {"translation_memory": ai_response.content}
 
 def translate_current_chunk_node(state: AgentState) -> dict:
     idx = state.get('current_chunk_index', 0)
     retry_count = state.get('current_chunk_retry_count', 0)
-    print(f"--- Translating Chunk {idx + 1} (Attempt {retry_count + 1}) ---")
+    logger.info(f"Translating chunk {idx + 1} (Attempt {retry_count + 1})...")
     sub_chunks_list = state.get('sub_chunks_list')
     
     if not sub_chunks_list or idx >= len(sub_chunks_list):
         return {"messages": [SystemMessage(content="Error: No more chunks or invalid index.")]}
-
     current_original_chunk_text = sub_chunks_list[idx] # This chunk now contains single-line entries
     translation_memory, target_language = state.get('translation_memory'), state.get('target_language')
 
     if not target_language: return {"messages": [SystemMessage(content="Error: Target language missing.")]}
     if not translation_memory: return {"messages": [SystemMessage(content="Error: Translation memory missing.")]}
-
     retry_note = ""
     if retry_count > 0:
         retry_note = "\n\nIMPORTANT: YOUR PREVIOUS ATTEMPT WAS REJECTED BECAUSE IT CONTAINED MARKDOWN CODE BLOCK DELIMITERS (```). PLEASE PROVIDE THE TRANSLATION AS PLAIN TEXT, STRICTLY FOLLOWING THE NUMBERED LINE FORMAT WITHOUT ANY CODE BLOCK WRAPPERS."
-
-    # The CHUNK_TRANSLATION_SYSTEM_PROMPT might need slight adjustment
-    # to reflect that input lines are now guaranteed to be single lines of text.
     sys_prompt = CHUNK_TRANSLATION_SYSTEM_PROMPT.format(target_language=target_language) + retry_note
     human_prompt = CHUNK_TRANSLATION_HUMAN_PROMPT.format(
         translation_memory=translation_memory, 
@@ -230,7 +236,7 @@ def translate_current_chunk_node(state: AgentState) -> dict:
         numbered_subtitle_lines=current_original_chunk_text
     )
     ai_response = translation_llm.invoke([SystemMessage(content=sys_prompt), HumanMessage(content=human_prompt)])
-    
+    logger.debug(f"Raw LLM output for chunk (first 200 chars): {ai_response.content[:200]}...")
     return {
         "current_chunk_original_text": current_original_chunk_text, 
         "current_chunk_translated_text": ai_response.content,
@@ -239,31 +245,31 @@ def translate_current_chunk_node(state: AgentState) -> dict:
 
 def validate_translation_format_node(state: AgentState) -> dict:
     chunk_idx = state.get('current_chunk_index', 0)
-    print(f"--- Validating Chunk {chunk_idx + 1} for Markdown Blocks ---")
+    logger.info(f"Validating translation format for chunk {chunk_idx + 1}...")
     raw_translated_chunk_text = state.get('current_chunk_translated_text') 
     retry_count = state.get('current_chunk_retry_count', 0)
 
     if raw_translated_chunk_text is None:
-        print(f"Error for Chunk {chunk_idx + 1}: Missing translated text for validation.")
+        logger.error(f"Error for Chunk {chunk_idx + 1}: Missing translated text for validation.")
         return {"current_chunk_validation_status": "INVALID_MAX_RETRIES_REACHED"} 
 
     if "```" in raw_translated_chunk_text:
-        print(f"Validation Error for Chunk {chunk_idx + 1}: Markdown code block '```' detected.")
+        logger.warning(f"Validation Error for Chunk {chunk_idx + 1}: Markdown code block '```' detected.")
         is_valid_format = False
     else:
         is_valid_format = True 
 
     if is_valid_format:
-        print(f"Validation for Chunk {chunk_idx + 1}: PASSED (No Markdown Blocks).")
+        logger.info(f"Validation for Chunk {chunk_idx + 1}: PASSED (No Markdown Blocks).")
         cleaned_text = _clean_llm_output(raw_translated_chunk_text) # Clean even if passed, for safety
         return {
             "current_chunk_validation_status": "VALID", 
             "current_chunk_translated_text": cleaned_text 
         }
     else:
-        print(f"Validation for Chunk {chunk_idx + 1}: FAILED (Markdown Block Detected) (Retry {retry_count + 1})")
+        logger.warning(f"Validation for Chunk {chunk_idx + 1}: FAILED (Markdown Block Detected) (Retry {retry_count + 1})")
         if retry_count >= MAX_TRANSLATION_RETRIES:
-            print(f"Max retries ({MAX_TRANSLATION_RETRIES}) reached for chunk {chunk_idx + 1} due to markdown blocks.")
+            logger.warning(f"Max retries ({MAX_TRANSLATION_RETRIES}) reached for chunk {chunk_idx + 1} due to markdown blocks.")
             return {"current_chunk_validation_status": "INVALID_MAX_RETRIES_REACHED"}
         else:
             return {
@@ -279,15 +285,15 @@ def decide_after_validation(state: AgentState) -> str:
     elif status == "INVALID_NEEDS_RETRY":
         return "retry_chunk_translation"
     elif status == "INVALID_MAX_RETRIES_REACHED":
-        print(f"Warning: Chunk {chunk_idx + 1} translation failed after max retries (markdown block issue). Using original text as placeholder.")
+        logger.warning(f"Chunk {chunk_idx + 1} translation failed after max retries (markdown block issue). Using original text as placeholder.")
         return "proceed_to_aggregate_with_placeholder" 
     else: 
-        print(f"Error: Unknown validation status '{status}' for chunk {chunk_idx + 1}. Ending process.")
+        logger.error(f"Error: Unknown validation status '{status}' for chunk {chunk_idx + 1}. Ending process.")
         return END 
 
 def aggregate_translation_node(state: AgentState) -> dict:
     chunk_idx = state.get('current_chunk_index', 0)
-    print(f"--- Aggregating Chunk {chunk_idx + 1} ---")
+    logger.info(f"Aggregating translation for chunk {chunk_idx + 1}...")
     translated_chunks_list = state.get('translated_chunks_list', [])
     text_to_append_for_aggregation = state.get('current_chunk_translated_text') 
     validation_status = state.get('current_chunk_validation_status')
@@ -295,16 +301,16 @@ def aggregate_translation_node(state: AgentState) -> dict:
     if validation_status == "INVALID_MAX_RETRIES_REACHED":
         original_text = state.get('current_chunk_original_text', "[ERROR: Placeholder - Original Text Missing]")
         text_to_append_for_aggregation = f"[TRANSLATION FAILED (MARKDOWN BLOCK) - ORIGINAL TEXT BELOW]\n{original_text}"
-        print(f"Appended original text for chunk {chunk_idx + 1} due to max retries (markdown block).")
+        logger.warning(f"Using original text as placeholder for chunk {chunk_idx + 1} due to validation failure.")
     elif validation_status == "VALID":
         if text_to_append_for_aggregation is None: 
              original_text = state.get('current_chunk_original_text', "[ERROR: Placeholder - Original Text Missing]")
              text_to_append_for_aggregation = f"[ERROR: VALID BUT TEXT MISSING - ORIGINAL TEXT BELOW]\n{original_text}"
-             print(f"Warning: Chunk {chunk_idx + 1} was VALID but translated text is None. Appending placeholder.")
+             logger.warning(f"Chunk {chunk_idx + 1} was VALID but translated text is None. Appending placeholder.")
     else: 
         original_text = state.get('current_chunk_original_text', "[ERROR: Placeholder - Original Text Missing]")
         text_to_append_for_aggregation = f"[ERROR: UNEXPECTED VALIDATION STATUS ({validation_status}) - ORIGINAL TEXT BELOW]\n{original_text}"
-        print(f"Warning: Chunk {chunk_idx + 1} had unexpected status '{validation_status}'. Appending placeholder.")
+        logger.info(f"Aggregating translation for chunk {chunk_idx + 1}. Status: {validation_status}")
     
     translated_chunks_list.append(text_to_append_for_aggregation)
     new_index = chunk_idx + 1
@@ -318,21 +324,22 @@ def should_translate_more_chunks(state: AgentState) -> str:
     current_chunk_index = state.get('current_chunk_index', 0)
     sub_chunks_list = state.get('sub_chunks_list')
     if sub_chunks_list and current_chunk_index < len(sub_chunks_list):
+        logger.info(f"Translating chunk {current_chunk_index + 1}/{len(sub_chunks_list)}")
         return "translate_next_chunk" 
     else:
         return "finish_translation" 
 
 def finalize_translation_node(state: AgentState) -> dict:
-    print("--- Finalizing Translation ---")
+    logger.info("Finalizing translation...")
     translated_chunks_list = state.get('translated_chunks_list')
     sub_list = state.get('sub_list') 
     original_srt_path = state.get('original_srt_path')
     
     if not sub_list: 
-        print("Warning: No original subtitles to finalize.")
+        logger.warning("No original subtitles to finalize.")
         return {"messages": [SystemMessage(content="No subtitles to finalize.")]}
     if not translated_chunks_list : 
-         print("Warning: No translated chunks to finalize. Using original subtitles.")
+         logger.warning("No translated chunks to finalize. Using original subtitles.")
     
     full_text_to_parse = "\n".join(translated_chunks_list)
     
@@ -351,7 +358,7 @@ def finalize_translation_node(state: AgentState) -> dict:
             translated_text = match.group(2) 
             translated_lines_map[original_index] = translated_text
         elif not (stripped_line.startswith("[TRANSLATION FAILED") or stripped_line.startswith("[ERROR:")):
-            print(f"Warning: Finalize - Could not parse line: '{line}'")
+            logger.warning(f"Warning: Finalize - Could not parse line: '{line}'")
 
     translated_sub_list_output: List[Dict[str, str]] = []
     for original_item in sub_list: # original_item['text'] is now single-line
@@ -368,7 +375,8 @@ def finalize_translation_node(state: AgentState) -> dict:
     target_lang_code = state.get('target_language', 'translated') 
     final_srt_path = f"{base}_{target_lang_code}{ext}"
     with open(final_srt_path, 'w', encoding='utf-8') as f: f.write(final_srt_content)
-    print(f"Translated SRT saved to: {final_srt_path}")
+    logger.info(f"Successfully parsed SRT. Number of entries: {len(sub_list)}")
+    logger.info(f"Translated SRT saved to: {final_srt_path}")
     return {
         "translated_sub_list": translated_sub_list_output, "final_srt_path": final_srt_path,
         "messages": [SystemMessage(content=f"Translation complete. Final SRT saved to {final_srt_path}")]
@@ -430,19 +438,19 @@ if __name__ == '__main__':
     for event in app.stream(initial_state, config=config):
         for k, v in event.items():
             if k != "__end__":
-                print(f"Output from node: {k}")
+                logger.info(f"Output from node: {k}")
                 if 'messages' in v and v['messages']:
                     last_message = v['messages'][-1]
-                    print(f"  Last Msg: {last_message.type}, Content: {str(last_message.content)[:100]}...")
+                    logger.info(f"  Last Msg: {last_message.type}, Content (first 100 chars): {str(last_message.content)[:100]}...")
                 if 'original_srt_path' in v and v['original_srt_path']:
-                    print(f"  Original SRT: {v['original_srt_path']}")
+                    logger.info(f"  Original SRT: {v['original_srt_path']}")
                 if 'final_srt_path' in v and v['final_srt_path']:
-                    print(f"  Final SRT: {v['final_srt_path']}")
+                    logger.info(f"  Final SRT: {v['final_srt_path']}")
                 if 'sub_chunks_list' in v and v['sub_chunks_list'] is not None:
                     chunk_len = len(v['sub_chunks_list']) if v['sub_chunks_list'] else 0
                     idx = v.get('current_chunk_index',0)
                     retry = v.get('current_chunk_retry_count',0)
                     status = v.get('current_chunk_validation_status','')
-                    print(f"  Chunk Prog: {idx}/{chunk_len}, Retry: {retry}, Status: {status}")
-                print("---")
-        print("\n##################################################\n")
+                    logger.info(f"  Chunk Prog: {idx}/{chunk_len}, Retry: {retry}, Status: {status}")
+                logger.info("---")
+        logger.info("##################################################")

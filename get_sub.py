@@ -2,6 +2,17 @@ from youtube_transcript_api import YouTubeTranscriptApi, NoTranscriptFound, Tran
 import re
 import os
 from langchain_core.tools import tool
+import logging
+
+# Configure logging
+# Using a distinct logger name for this module can be helpful for filtering logs.
+logger = logging.getLogger(__name__)
+if not logger.hasHandlers(): # Avoid adding multiple handlers if this module is reloaded
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(name)s - %(module)s.%(funcName)s:%(lineno)d - %(message)s')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    logger.setLevel(logging.INFO) # Default level, can be adjusted
 
 # --- Helper Functions ---
 
@@ -37,6 +48,7 @@ def _extract_video_id(video_url: str) -> str:
         match = re.search(pattern, video_url)
         if match:
             return match.group(1)
+    logger.error(f"Could not extract video ID from URL: {video_url}")
     raise ValueError(f"Could not extract video ID from URL: {video_url}")
 
 # --- Tool Functions for LangGraph Agent ---
@@ -60,15 +72,18 @@ def list_available_languages(video_url: str) -> list:
         NoTranscriptFound: If no transcripts are available at all.
         Exception: For other unexpected errors from the API.
     """
+    logger.info(f"Attempting to list available languages for URL: {video_url}")
     video_id = _extract_video_id(video_url) 
+    logger.debug(f"Extracted video ID: {video_id} for URL: {video_url}")
     
     try:
         transcript_list_obj = YouTubeTranscriptApi.list_transcripts(video_id)
+        logger.debug(f"Successfully listed transcripts for video ID {video_id}")
     except (TranscriptsDisabled, NoTranscriptFound) as e:
-        # Re-raise these specific exceptions as they are informative
+        logger.warning(f"Error listing transcripts for video ID {video_id} (URL: {video_url}): {type(e).__name__} - {str(e)}")
         raise e
     except Exception as e:
-        # Catch other potential exceptions from list_transcripts
+        logger.error(f"Unexpected error listing transcripts for video ID {video_id} (URL: {video_url}): {str(e)}", exc_info=True)
         raise Exception(f"Failed to list transcripts for video ID {video_id}: {str(e)}")
 
     available_langs = []
@@ -81,10 +96,11 @@ def list_available_languages(video_url: str) -> list:
         })
     
     if not available_langs:
-        # This case handles if list_transcripts returns an empty but valid object
-        # without raising NoTranscriptFound itself (though typically it should).
+        logger.warning(f"No subtitle languages found for video ID {video_id} (URL: {video_url}), though transcripts are not explicitly disabled.")
         raise NoTranscriptFound(f"No subtitle languages found for video ID {video_id}, though transcripts are not explicitly disabled.")
-        
+    
+    logger.info(f"Found {len(available_langs)} available languages for video ID {video_id} (URL: {video_url}).")
+    logger.debug(f"Available languages for {video_id}: {available_langs}")
     return available_langs
 
 @tool
@@ -111,18 +127,23 @@ def fetch_youtube_srt(video_url: str, language_code: str, output_srt_path: str) 
         IOError: If output_srt_path is provided and file writing fails.
         Exception: For other unexpected errors from the API or file system.
     """
+    logger.info(f"Attempting to fetch SRT for URL: {video_url}, language: {language_code}, output: {output_srt_path}")
     video_id = _extract_video_id(video_url)
+    logger.debug(f"Extracted video ID: {video_id} for URL: {video_url}")
 
     try:
         # Fetches a list of dictionaries: [{'text': '...', 'start': ..., 'duration': ...}, ...]
         transcript_entries = YouTubeTranscriptApi.get_transcript(video_id, languages=[language_code])
+        logger.debug(f"Successfully fetched transcript data for video ID {video_id}, language {language_code}. Entries: {len(transcript_entries)}")
     except (NoTranscriptFound, TranscriptsDisabled) as e:
+        logger.warning(f"Error fetching transcript for video ID {video_id}, lang {language_code} (URL: {video_url}): {type(e).__name__} - {str(e)}")
         raise e # Re-raise specific exceptions
     except Exception as e:
-        # Catch-all for other API errors during fetch
+        logger.error(f"Unexpected error fetching transcript for video ID {video_id}, lang {language_code} (URL: {video_url}): {str(e)}", exc_info=True)
         raise Exception(f"Failed to fetch transcript for video ID {video_id} (lang: {language_code}): {str(e)}")
 
     if not transcript_entries: # Should be redundant if API raises NoTranscriptFound correctly
+        logger.warning(f"Transcript data for video ID {video_id} (lang: {language_code}) was unexpectedly empty after fetch.")
         raise NoTranscriptFound(f"Transcript data for video ID {video_id} (lang: {language_code}) was unexpectedly empty after fetch.")
 
     srt_content_lines = []
@@ -143,8 +164,18 @@ def fetch_youtube_srt(video_url: str, language_code: str, output_srt_path: str) 
 
     output_dir = os.path.dirname(output_srt_path)
     if output_dir and not os.path.exists(output_dir): # Ensure directory exists
+        logger.info(f"Creating output directory: {output_dir}")
         os.makedirs(output_dir, exist_ok=True)
 
-    with open(output_srt_path, 'w', encoding='utf-8') as f:
-        f.write(srt_content_string)
+    try:
+        with open(output_srt_path, 'w', encoding='utf-8') as f:
+            f.write(srt_content_string)
+        logger.info(f"Successfully wrote SRT content to: {output_srt_path}")
+    except IOError as e:
+        logger.error(f"IOError writing SRT file to {output_srt_path}: {str(e)}", exc_info=True)
+        raise IOError(f"Failed to write SRT file to {output_srt_path}: {str(e)}")
+    except Exception as e:
+        logger.error(f"Unexpected error writing SRT file to {output_srt_path}: {str(e)}", exc_info=True)
+        raise Exception(f"Unexpected error writing SRT file to {output_srt_path}: {str(e)}")
+
     return output_srt_path
