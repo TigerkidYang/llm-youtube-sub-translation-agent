@@ -10,8 +10,8 @@ import logging
 logger = logging.getLogger(__name__)
 
 # Retry parameters
-MAX_RETRIES = 20
-RETRY_DELAY_SECONDS = 3
+MAX_RETRIES = int(os.environ.get("YOUTUBE_API_MAX_RETRIES", "20"))
+RETRY_DELAY_SECONDS = int(os.environ.get("YOUTUBE_API_RETRY_DELAY_SECONDS", "3"))
 if not logger.hasHandlers(): # Avoid adding multiple handlers if this module is reloaded
     handler = logging.StreamHandler()
     formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(name)s - %(module)s.%(funcName)s:%(lineno)d - %(message)s')

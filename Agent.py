@@ -28,8 +28,17 @@ from prompts import (
 load_dotenv()
 
 # Constants
-CHUNK_SIZE = 50 # Number of subtitle entries per translation chunk.
-MAX_TRANSLATION_RETRIES = 2 # Maximum retry attempts for translating a chunk. 
+# Load CHUNK_SIZE from environment variable, default to 50
+CHUNK_SIZE = int(os.environ.get("AGENT_CHUNK_SIZE", "50"))
+# Load MAX_TRANSLATION_RETRIES from environment variable, default to 2
+MAX_TRANSLATION_RETRIES = int(os.environ.get("AGENT_MAX_TRANSLATION_RETRIES", "2"))
+
+DEFAULT_EXTRACTION_MODEL = "o3-mini"
+DEFAULT_TRANSLATION_MODEL = "o3-mini"
+EXTRACTION_MODEL_NAME = os.environ.get("EXTRACTION_MODEL", DEFAULT_EXTRACTION_MODEL)
+TRANSLATION_MODEL_NAME = os.environ.get("TRANSLATION_MODEL", DEFAULT_TRANSLATION_MODEL)
+# Default transcript output directory, can be overridden by environment variable
+DEFAULT_TRANSCRIPT_OUTPUT_DIR = "transcripts"
 
 class AgentState(TypedDict):
     video_link: str # URL of the YouTube video to be translated.
@@ -219,35 +228,82 @@ def get_language_choices_node(state: AgentState) -> AgentState:
 
 # Tools for the subtitle extraction agent (get_sub_node). Only fetch_youtube_srt is needed now.
 extraction_tools = [fetch_youtube_srt]
-llm = ChatOpenAI(model='o3-mini').bind_tools(extraction_tools)
-translation_llm = ChatOpenAI(model='o3-mini') 
+llm = ChatOpenAI(model=EXTRACTION_MODEL_NAME).bind_tools(extraction_tools)
+translation_llm = ChatOpenAI(model=TRANSLATION_MODEL_NAME) 
 
 def get_sub_node(state: AgentState) -> AgentState:
     """Invokes the LLM to extract subtitles using the chosen language and video link."""
     logger.info("Entering node: get_sub_node")
-    logger.info(f"Invoking LLM for subtitle extraction with messages: {state['messages']}")
-    response = llm.invoke(state['messages'])
-    logger.info(f"LLM response for subtitle extraction: {response}")
-    new_messages = state.get('messages', []) + [response]
-    current_original_srt_path = state.get('original_srt_path') # Get existing path if any
+    
+    current_messages = state.get('messages', [])
+    # Preserve existing original_srt_path if it was already set by a previous run or a different logic path
+    new_original_srt_path = state.get('original_srt_path') 
 
-    # If the LLM's response is a final text message (not a tool call)
-    if isinstance(response, AIMessage) and not response.tool_calls:
-        logger.info(f"get_sub_node: LLM provided final text response: {response.content}")
-        # Attempt to extract SRT path from LLM's final text response if no tool call.
-        pattern = r"""['"]?(transcripts/([a-zA-Z0-9_]|-)+\.srt)['"]?"""
+    # Check if the last message is a ToolMessage, potentially from fetch_youtube_srt
+    if current_messages and isinstance(current_messages[-1], ToolMessage):
+        last_tool_message = current_messages[-1]
+        # Assuming the content of the ToolMessage from fetch_youtube_srt is the file path string.
+        if isinstance(last_tool_message.content, str) and last_tool_message.content.endswith(".srt"):
+            new_original_srt_path = last_tool_message.content
+            logger.info(f"Extracted original_srt_path from ToolMessage: {new_original_srt_path}")
+            # If path is successfully extracted from ToolMessage, no need to call LLM again for this cycle.
+            return {"messages": current_messages, "original_srt_path": new_original_srt_path}
+
+    # If no valid path from ToolMessage, proceed to call LLM for decision/tool invocation
+    logger.info(f"No valid SRT path from ToolMessage, invoking LLM with messages: {current_messages}")
+    response = llm.invoke(current_messages) 
+    logger.info(f"LLM response: {response}")
+
+    # Modify tool call arguments if fetch_youtube_srt is called by the LLM
+    if isinstance(response, AIMessage) and response.tool_calls:
+        modified_tool_calls = []
+        for tool_call in response.tool_calls:
+            if tool_call.get("name") == "fetch_youtube_srt":
+                logger.info(f"Intercepted tool call for fetch_youtube_srt: {tool_call}")
+                args = tool_call.get("args", {})
+                original_llm_output_path = args.get("output_srt_path") 
+                
+                base_output_dir = os.environ.get("TRANSCRIPT_OUTPUT_DIR", DEFAULT_TRANSCRIPT_OUTPUT_DIR)
+                
+                if not os.path.exists(base_output_dir):
+                    logger.info(f"Creating base output directory for transcripts: {base_output_dir}")
+                    os.makedirs(base_output_dir, exist_ok=True)
+                    
+                file_name = None
+                if original_llm_output_path:
+                    file_name = os.path.basename(original_llm_output_path)
+                
+                if not file_name or not file_name.endswith(".srt"):
+                    default_fn_lang = state.get('chosen_language_code', 'orig')
+                    file_name = f"video_subtitles_{default_fn_lang}.srt" 
+                    logger.warning(f"LLM provided invalid/missing filename in output_srt_path: '{original_llm_output_path}'. Using generated: '{file_name}'")
+
+                corrected_output_path = os.path.join(base_output_dir, file_name)
+                args["output_srt_path"] = corrected_output_path 
+                tool_call["args"] = args 
+                logger.info(f"Modified output_srt_path for fetch_youtube_srt to: {corrected_output_path}")
+            modified_tool_calls.append(tool_call)
+        response.tool_calls = modified_tool_calls
+
+    updated_messages = current_messages + [response]
+
+    if new_original_srt_path is None and isinstance(response, AIMessage) and not response.tool_calls:
+        logger.info(f"get_sub_node: LLM provided final text response (no tool call): {response.content}")
+        base_dir_for_regex = os.environ.get("TRANSCRIPT_OUTPUT_DIR", DEFAULT_TRANSCRIPT_OUTPUT_DIR)
+        base_dir_for_regex_safe = base_dir_for_regex.replace("\\", "\\\\").replace("/", "\\/") 
+        pattern = rf"""['"]?({base_dir_for_regex_safe}\\/[a-zA-Z0-9_.-]+\.srt)['"]?"""
         match = re.search(pattern, response.content)
         if match:
-            extracted_path = match.group(1)
+            extracted_path = match.group(1).replace("\\/", "/") 
             logger.info(f"get_sub_node: Extracted SRT path from final AIMessage content: {extracted_path}")
-            current_original_srt_path = extracted_path
+            new_original_srt_path = extracted_path
         else:
-            logger.warning(f"get_sub_node: Could not extract SRT path from final AIMessage content: {response.content}")
+            logger.warning(f"get_sub_node: Could not extract SRT path from final AIMessage content: '{response.content}' using pattern: {pattern}")
     
-    logger.info(f"get_sub_node: Value of original_srt_path before returning state: '{current_original_srt_path}'")
+    logger.info(f"get_sub_node: Value of original_srt_path before returning state: '{new_original_srt_path}'")
     return {
-        "messages": new_messages,
-        "original_srt_path": current_original_srt_path
+        "messages": updated_messages,
+        "original_srt_path": new_original_srt_path
     }
 
 def should_continue_extraction(state: AgentState) -> str:
