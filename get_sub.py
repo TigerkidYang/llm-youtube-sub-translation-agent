@@ -1,7 +1,7 @@
 from youtube_transcript_api import YouTubeTranscriptApi, NoTranscriptFound, TranscriptsDisabled
 import re
 import os
-import time # Added for retry delay
+import time # For implementing retry delays
 from langchain_core.tools import tool
 import logging
 
@@ -110,7 +110,6 @@ def list_available_languages(video_url: str) -> list:
             'name': transcript_lang.language,
             'code': transcript_lang.language_code,
             'is_generated': transcript_lang.is_generated
-            # 'original_api_object': transcript_lang # Optionally include for more direct API interaction if needed by agent
         })
     
     if not available_langs:

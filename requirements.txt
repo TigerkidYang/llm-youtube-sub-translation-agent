@@ -1,0 +1,5 @@
+langchain-core
+langgraph
+python-dotenv
+youtube-transcript-api
+langchain-openai

@@ -1,7 +1,7 @@
 from typing import TypedDict, Annotated, Sequence, List, Dict
 from langchain_core.tools import tool 
 from langgraph.graph.message import add_messages
-from get_sub import list_available_languages, fetch_youtube_srt # Assuming this is in the same directory
+from get_sub import list_available_languages, fetch_youtube_srt
 from langgraph.graph import StateGraph, START, END
 from dotenv import load_dotenv
 import logging
@@ -17,47 +17,47 @@ from langchain_openai import ChatOpenAI
 import os
 import re 
 
-# Assuming prompts are defined in prompts.py and will be updated separately
 from prompts import (
     SUBTITLE_EXTRACTION_SYSTEM_PROMPT,
     TRANSLATION_CONTEXT_SYSTEM_PROMPT,
     TRANSLATION_CONTEXT_HUMAN_PROMPT,
-    CHUNK_TRANSLATION_SYSTEM_PROMPT, # This prompt will need adjustment
+    CHUNK_TRANSLATION_SYSTEM_PROMPT,
     CHUNK_TRANSLATION_HUMAN_PROMPT
 )
 
 load_dotenv()
 
 # Constants
-CHUNK_SIZE = 50 # Keeping this as is from the "markdown check" version for now
-MAX_TRANSLATION_RETRIES = 2 
+CHUNK_SIZE = 50 # Number of subtitle entries per translation chunk.
+MAX_TRANSLATION_RETRIES = 2 # Maximum retry attempts for translating a chunk. 
 
 class AgentState(TypedDict):
-    video_link: str
+    video_link: str # URL of the YouTube video to be translated.
     original_language: str # User's stated original language preference (e.g., 'English', 'en')
-    target_language: str
+    target_language: str # Desired language for the translated subtitles.
     
     available_languages: List[Dict[str, any]] | None # Stores list of {'name': str, 'code': str, 'is_generated': bool}
     chosen_language_code: str | None # The language code selected by the user from available_languages
-    original_srt_path: str | None
+    original_srt_path: str | None # File path to the downloaded original SRT subtitles.
     
-    sub_list: List[Dict[str, str]] | None 
-    sub_chunks_list: List[str] | None 
-    current_chunk_index: int 
-    translation_memory: str | None
-    translated_chunks_list: List[str] | None 
-    translated_sub_list: List[Dict[str, str]] | None 
-    final_srt_path: str | None 
+    sub_list: List[Dict[str, str]] | None # List of dictionaries representing original subtitle entries. 
+    sub_chunks_list: List[str] | None # Original subtitles divided into processable text chunks. 
+    current_chunk_index: int # Index of the current subtitle chunk being processed. 
+    translation_memory: str | None # Contextual information or glossary for consistent translation.
+    translated_chunks_list: List[str] | None # List of translated subtitle text chunks. 
+    translated_sub_list: List[Dict[str, str]] | None # List of dictionaries representing translated subtitle entries. 
+    final_srt_path: str | None # File path to the final translated SRT subtitles. 
     
-    current_chunk_original_text: str | None 
-    current_chunk_translated_text: str | None 
-    current_chunk_validation_status: str | None 
-    current_chunk_retry_count: int 
+    current_chunk_original_text: str | None # Text of the original subtitle chunk currently being translated. 
+    current_chunk_translated_text: str | None # Text of the translated subtitle chunk. 
+    current_chunk_validation_status: str | None # Status of the current chunk's translation validation (e.g., 'valid', 'invalid'). 
+    current_chunk_retry_count: int # Number of retry attempts for the current translation chunk. 
     
-    messages: Annotated[Sequence[BaseMessage], add_messages]
+    messages: Annotated[Sequence[BaseMessage], add_messages] # History of messages in the LangGraph agent execution.
 
 
 def _parse_srt_to_list(srt_content: str) -> List[Dict[str, str]]:
+    """Parses SRT formatted string content into a list of subtitle dictionaries."""
     subs = []
     if not srt_content:
         return subs
@@ -72,7 +72,6 @@ def _parse_srt_to_list(srt_content: str) -> List[Dict[str, str]]:
         index = match.group(1)
         start_time = match.group(2)
         end_time = match.group(3)
-        # MODIFICATION: Join multi-line text into a single line with spaces
         text_lines = match.group(4).strip().splitlines()
         single_line_text = " ".join(line.strip() for line in text_lines if line.strip())
         
@@ -85,18 +84,18 @@ def _parse_srt_to_list(srt_content: str) -> List[Dict[str, str]]:
     return subs
 
 def _list_to_srt_str(sub_list_data: List[Dict[str, str]]) -> str:
+    """Converts a list of subtitle dictionaries back into an SRT formatted string."""
     srt_output = []
     for item in sub_list_data:
         srt_output.append(item['index'])
         srt_output.append(f"{item['start_time']} --> {item['end_time']}")
-        # Text is expected to be single line here due to preprocessing,
-        # but if LLM re-introduces newlines for translated long lines,
-        # SRT standard allows multi-line text per entry.
+        # Ensures SRT compliance, allowing multi-line text if reintroduced by LLM.
         srt_output.append(item['text']) 
         srt_output.append("")
     return "\n".join(srt_output)
 
 def _clean_llm_output(text: str) -> str:
+    """Cleans LLM output by removing markdown code blocks and surrounding quotes."""
     cleaned = text.strip()
     code_block_match = re.match(r"^```(?:[a-zA-Z0-9_.-]*)?\s*\n(.*?)\n```$", cleaned, re.DOTALL | re.MULTILINE)
     if code_block_match:
@@ -108,17 +107,19 @@ def _clean_llm_output(text: str) -> str:
 
 
 def get_video_link_node(state: AgentState) -> AgentState:
+    """Prompts the user to input a YouTube video link and updates the state."""
     logger.info("Entering node: get_video_link_node")
-    video_link = input('请输入 YouTube 视频链接 (Enter the YouTube video link): ')
+    video_link = input('Please enter the YouTube video link: ')
     logger.info(f"User provided video link: {video_link}")
     return {"video_link": video_link, "messages": [HumanMessage(content=f"Video link provided: {video_link}")]}
 
 def display_available_languages_node(state: AgentState) -> AgentState:
+    """Fetches and displays available subtitle languages for the video, then updates the state."""
     logger.info("Entering node: display_available_languages_node")
     video_url = state['video_link']
     if not video_url:
         logger.error("Video link is missing.")
-        return {"available_languages": None, "messages": state.get('messages', []) + [SystemMessage(content="错误：视频链接缺失 Error: Video link is missing.")]}
+        return {"available_languages": None, "messages": state.get('messages', []) + [SystemMessage(content="Error: Video link is missing.")]}
     
     try:
         logger.info(f"Fetching available languages for: {video_url}")
@@ -127,21 +128,22 @@ def display_available_languages_node(state: AgentState) -> AgentState:
         
         if not available_langs_list:
             logger.warning(f"No subtitles found for video: {video_url}")
-            print("抱歉，该视频似乎没有可用的字幕。(Sorry, no subtitles seem to be available for this video.)")
-            return {"available_languages": None, "messages": state.get('messages', []) + [SystemMessage(content="未找到可用字幕。(No available subtitles found.)")]}
+            print("Sorry, no subtitles seem to be available for this video.")
+            return {"available_languages": None, "messages": state.get('messages', []) + [SystemMessage(content="No available subtitles found.")]}
         
-        print("\n视频可用字幕语言 (Available subtitle languages for the video):")
+        print("\nAvailable subtitle languages for the video:")
         for lang_info in available_langs_list:
-            print(f"  - {lang_info['name']} (代码 Code: {lang_info['code']}){' (自动生成 Autogenerated)' if lang_info.get('is_generated') else ''}")
+            print(f"  - {lang_info['name']} (Code: {lang_info['code']}){' (Autogenerated)' if lang_info.get('is_generated') else ''}")
         print("")
         logger.info(f"Successfully fetched and displayed available languages: {available_langs_list}")
         return {"available_languages": available_langs_list, "messages": state.get('messages', []) + [SystemMessage(content=f"Available languages displayed: {available_langs_list}")]}
     except Exception as e:
         logger.error(f"Error fetching or displaying available languages: {e}", exc_info=True)
-        print(f"获取可用字幕时出错: {e} (Error fetching available languages: {e})")
-        return {"available_languages": None, "messages": state.get('messages', []) + [SystemMessage(content=f"获取可用字幕时出错: {e}")]}
+        print(f"Error fetching available languages: {e}")
+        return {"available_languages": None, "messages": state.get('messages', []) + [SystemMessage(content=f"Error fetching available languages: {e}")]}
 
 def decide_after_displaying_languages(state: AgentState) -> str:
+    """Determines the next step based on whether available languages were found."""
     logger.info("Entering node: decide_after_displaying_languages")
     if state.get('available_languages'):
         logger.info("Available languages found, proceeding to get language choices.")
@@ -151,18 +153,19 @@ def decide_after_displaying_languages(state: AgentState) -> str:
         return END
 
 def get_language_choices_node(state: AgentState) -> AgentState:
+    """Prompts user for original and target language choices, then prepares state for subtitle extraction."""
     logger.info("Entering node: get_language_choices_node")
     available_languages_list = state['available_languages']
     if not available_languages_list: # Should not happen if decide_after_displaying_languages works
         logger.error("Cannot get language choices, no available_languages_list in state.")
-        return { "messages": state.get('messages', []) + [SystemMessage(content="内部错误：可用语言列表未找到。(Internal error: available languages list not found.)")]}
+        return { "messages": state.get('messages', []) + [SystemMessage(content="Internal error: available languages list not found.")]}
 
     available_codes = [lang['code'] for lang in available_languages_list]
     chosen_code = ""
     original_language_name = ""
 
     while True:
-        original_language_code_input = input('请输入您想翻译的原始字幕语言代码 (Enter the language code of the original subtitles you want to translate): ').strip()
+        original_language_code_input = input('Enter the language code of the original subtitles you want to translate: ').strip()
         if original_language_code_input in available_codes:
             chosen_code = original_language_code_input
             # Find the full name for the chosen code
@@ -172,10 +175,12 @@ def get_language_choices_node(state: AgentState) -> AgentState:
                     break
             break
         else:
-            print(f"无效的语言代码 '{original_language_code_input}'. 请从上面列出的可用语言代码中选择。(Invalid language code '{original_language_code_input}'. Please choose from the available codes listed above.)")
+            print(f"Invalid language code '{original_language_code_input}'. Please choose from the available codes listed above.")
     
-    target_language = input('请输入您希望翻译成的目标语言 (例如 en, zh-CN, fr) (Enter the target language you want to translate to (e.g., en, zh-CN, fr)): ').strip()
+    # Get the target language from the user
+    target_language = input('Enter the target language you want to translate to (e.g., en, zh-CN, fr): ').strip()
     
+    # Update the state with the user's language choices
     state['chosen_language_code'] = chosen_code
     # Use the full name if found, otherwise default to the code itself
     state['original_language'] = original_language_name if original_language_name else chosen_code 
@@ -184,8 +189,6 @@ def get_language_choices_node(state: AgentState) -> AgentState:
     logger.info(f"User chose original language code: {chosen_code}, target language: {target_language}")
     
     # Prepare messages for the subtitle extraction agent (get_sub_node)
-    # The system prompt is part of the LLM configuration for get_sub_node.
-    # We provide the video_link and chosen_language_code for the LLM to use with fetch_youtube_srt.
     extraction_messages = [
         SystemMessage(content=SUBTITLE_EXTRACTION_SYSTEM_PROMPT),
         HumanMessage(content=f"Please fetch subtitles for the video: {state['video_link']}. "
@@ -197,9 +200,9 @@ def get_language_choices_node(state: AgentState) -> AgentState:
         "video_link": state['video_link'],
         "original_language": state['original_language'],
         "target_language": target_language,
-        "available_languages": available_languages_list, # Pass the list along
+        "available_languages": available_languages_list,
         "chosen_language_code": chosen_code,
-        "messages": extraction_messages, # This will be used by get_sub_node
+        "messages": extraction_messages,
         "current_chunk_index": 0,
         "current_chunk_retry_count": 0,
         "translated_chunks_list": [],
@@ -220,9 +223,8 @@ llm = ChatOpenAI(model='o3-mini').bind_tools(extraction_tools)
 translation_llm = ChatOpenAI(model='o3-mini') 
 
 def get_sub_node(state: AgentState) -> AgentState:
+    """Invokes the LLM to extract subtitles using the chosen language and video link."""
     logger.info("Entering node: get_sub_node")
-    # Messages are now set up by get_language_choices_node
-    # It contains SUBTITLE_EXTRACTION_SYSTEM_PROMPT and a HumanMessage with video_link & chosen_language_code
     logger.info(f"Invoking LLM for subtitle extraction with messages: {state['messages']}")
     response = llm.invoke(state['messages'])
     logger.info(f"LLM response for subtitle extraction: {response}")
@@ -232,8 +234,7 @@ def get_sub_node(state: AgentState) -> AgentState:
     # If the LLM's response is a final text message (not a tool call)
     if isinstance(response, AIMessage) and not response.tool_calls:
         logger.info(f"get_sub_node: LLM provided final text response: {response.content}")
-        # Try to extract srt_path from the AI's final message content
-        # This regex looks for paths like 'transcripts/video_id_lang.srt'
+        # Attempt to extract SRT path from LLM's final text response if no tool call.
         pattern = r"""['"]?(transcripts/([a-zA-Z0-9_]|-)+\.srt)['"]?"""
         match = re.search(pattern, response.content)
         if match:
@@ -250,6 +251,7 @@ def get_sub_node(state: AgentState) -> AgentState:
     }
 
 def should_continue_extraction(state: AgentState) -> str:
+    """Determines if subtitle extraction requires a tool call, or can proceed to translation/end."""
     if state.get("original_srt_path") is not None:
         return "start_translation" 
     messages = state['messages']
@@ -260,6 +262,7 @@ def should_continue_extraction(state: AgentState) -> str:
     return "end_process"
 
 def prepare_translation_node(state: AgentState) -> dict:
+    """Loads original subtitles, parses them, and divides them into text chunks for translation."""
     logger.info("Preparing translation...")
     original_srt_path = state.get('original_srt_path')
     if not original_srt_path or not os.path.exists(original_srt_path):
@@ -267,11 +270,8 @@ def prepare_translation_node(state: AgentState) -> dict:
         return {"messages": [SystemMessage(content=f"Error: Original SRT file not found. Cannot proceed.")]}
     with open(original_srt_path, 'r', encoding='utf-8') as f: srt_content = f.read()
     
-    # _parse_srt_to_list now converts multi-line text to single-line
     sub_list = _parse_srt_to_list(srt_content) 
     
-    # Each item['text'] in sub_list is now single-line.
-    # So, each f-string in numbered_texts_for_chunking will also represent a single line of original text.
     numbered_texts_for_chunking = [f"{item['index']}. {item['text']}" for item in sub_list]
     
     sub_chunks_list = ["\n".join(numbered_texts_for_chunking[i:i + CHUNK_SIZE]) 
@@ -284,12 +284,12 @@ def prepare_translation_node(state: AgentState) -> dict:
     }
 
 def generate_translation_context_node(state: AgentState) -> dict:
+    """Generates a contextual translation memory from the full subtitle text using an LLM."""
     logger.info("Generating translation context...")
     sub_list, target_language = state.get('sub_list'), state.get('target_language')
     if not sub_list: return {"messages": [SystemMessage(content="Error: Subtitle list not found.")]}
     if not target_language: return {"messages": [SystemMessage(content="Error: Target language not found.")]}
     
-    # Texts in sub_list are now single-lined per entry
     full_text = "\n".join([item['text'] for item in sub_list]) 
     
     sys_prompt = TRANSLATION_CONTEXT_SYSTEM_PROMPT.format(target_language=target_language)
@@ -299,6 +299,7 @@ def generate_translation_context_node(state: AgentState) -> dict:
     return {"translation_memory": ai_response.content}
 
 def translate_current_chunk_node(state: AgentState) -> dict:
+    """Translates the current chunk of subtitles using an LLM, incorporating translation memory and retry logic."""
     idx = state.get('current_chunk_index', 0)
     retry_count = state.get('current_chunk_retry_count', 0)
     logger.info(f"Translating chunk {idx + 1} (Attempt {retry_count + 1})...")
@@ -306,7 +307,7 @@ def translate_current_chunk_node(state: AgentState) -> dict:
     
     if not sub_chunks_list or idx >= len(sub_chunks_list):
         return {"messages": [SystemMessage(content="Error: No more chunks or invalid index.")]}
-    current_original_chunk_text = sub_chunks_list[idx] # This chunk now contains single-line entries
+    current_original_chunk_text = sub_chunks_list[idx]
     translation_memory, target_language = state.get('translation_memory'), state.get('target_language')
 
     if not target_language: return {"messages": [SystemMessage(content="Error: Target language missing.")]}
@@ -329,6 +330,7 @@ def translate_current_chunk_node(state: AgentState) -> dict:
     }
 
 def validate_translation_format_node(state: AgentState) -> dict:
+    """Validates the format of the translated chunk, checking for markdown code blocks."""
     chunk_idx = state.get('current_chunk_index', 0)
     logger.info(f"Validating translation format for chunk {chunk_idx + 1}...")
     raw_translated_chunk_text = state.get('current_chunk_translated_text') 
@@ -363,6 +365,7 @@ def validate_translation_format_node(state: AgentState) -> dict:
             }
 
 def decide_after_validation(state: AgentState) -> str:
+    """Determines the next step based on the translation validation status of the current chunk."""
     status = state.get('current_chunk_validation_status')
     chunk_idx = state.get('current_chunk_index', 0)
     if status == "VALID":
@@ -377,6 +380,7 @@ def decide_after_validation(state: AgentState) -> str:
         return END 
 
 def aggregate_translation_node(state: AgentState) -> dict:
+    """Aggregates the validated (or placeholder) translated text for the current chunk and updates the state."""
     chunk_idx = state.get('current_chunk_index', 0)
     logger.info(f"Aggregating translation for chunk {chunk_idx + 1}...")
     translated_chunks_list = state.get('translated_chunks_list', [])
@@ -406,6 +410,7 @@ def aggregate_translation_node(state: AgentState) -> dict:
     }
 
 def should_translate_more_chunks(state: AgentState) -> str: 
+    """Checks if there are more subtitle chunks to translate.""" 
     current_chunk_index = state.get('current_chunk_index', 0)
     sub_chunks_list = state.get('sub_chunks_list')
     if sub_chunks_list and current_chunk_index < len(sub_chunks_list):
@@ -415,6 +420,7 @@ def should_translate_more_chunks(state: AgentState) -> str:
         return "finish_translation" 
 
 def finalize_translation_node(state: AgentState) -> dict:
+    """Parses aggregated translated text, reconstructs the subtitle list, and saves the final translated SRT file."""
     logger.info("Finalizing translation...")
     translated_chunks_list = state.get('translated_chunks_list')
     sub_list = state.get('sub_list') 
@@ -475,8 +481,8 @@ graph.add_node('get_video_link', get_video_link_node)
 graph.add_node('display_available_languages', display_available_languages_node)
 graph.add_node('get_language_choices', get_language_choices_node)
 
-graph.add_node('getsub', get_sub_node) # This node now uses the updated llm and prompt
-extraction_tool_node = ToolNode(tools=extraction_tools) # ToolNode now only has fetch_youtube_srt
+graph.add_node('getsub', get_sub_node)
+extraction_tool_node = ToolNode(tools=extraction_tools)
 graph.add_node('extraction_tools', extraction_tool_node)
 
 graph.add_node('prepare_translation', prepare_translation_node)
@@ -499,10 +505,10 @@ graph.add_conditional_edges(
 )
 graph.add_edge('get_language_choices', 'getsub')
 
-# Edges for the rest of the subtitle processing flow (mostly unchanged)
+# Edges for subtitle processing flow
 graph.add_conditional_edges(
     'getsub', 
-    should_continue_extraction, # This function checks for tool_calls or if srt_path is ready
+    should_continue_extraction,
     {
         "continue_extraction": 'extraction_tools', 
         "start_translation": 'prepare_translation', 
@@ -541,6 +547,7 @@ graph.add_edge('finalize_translation', END)
 
 app = graph.compile()
 
+# Main execution block to run the agent.
 if __name__ == '__main__':
     config = {"recursion_limit": 250} 
     initial_state = {} 
