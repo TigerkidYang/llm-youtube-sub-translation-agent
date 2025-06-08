@@ -50,7 +50,7 @@ El agente opera como una máquina de estados, moviéndose a través de una serie
 5.  **Preparar para la Traducción**: ⚙️ El archivo `.srt` descargado se analiza y su contenido se divide en fragmentos de texto más pequeños y numerados según el `CHUNK_SIZE`.
 6.  **Generar Contexto de Traducción**: 💡 El agente envía el texto *completo* de los subtítulos originales a un LLM para generar una "memoria de traducción". Este documento crítico contiene un glosario de términos clave, descripciones de las voces y tonos de los hablantes, y consejos de traducción para garantizar la coherencia.
 7.  **Traducir Fragmentos (Bucle)**: 🔁 El agente itera a través de cada fragmento de texto.  
-    a.  **Traducir**: El fragmento actual se envía al LLM для для перевода, junto con la memoria de traducción para el contexto.  
+    a.  **Traducir**: El fragmento actual se envía al LLM para la traducción, junto con la memoria de traducción para el contexto. 
     b.  **Validar**: Se comprueba la corrección de la salida del LLM. Específicamente, se asegura de que la salida sea texto sin formato y no esté envuelta en bloques de código markdown. Si la validación falla, el agente reintenta la traducción hasta un máximo definido.  
     c.  **Agregar**: El texto traducido y validado se agrega a una lista. Si un fragmento falla repetidamente la validación, se utiliza el texto original como marcador de posición para evitar la pérdida de datos.  
 8.  **Finalizar Traducción**: ✅ Una vez que todos los fragmentos están traducidos, el agente reconstruye una lista completa de subtítulos traducidos, la convierte de nuevo al formato SRT y la guarda en un nuevo archivo (por ejemplo, `transcripts/video_id_en_es.srt`).
