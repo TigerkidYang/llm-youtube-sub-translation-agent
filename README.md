@@ -13,7 +13,7 @@
   </p>
   <p>
     🌐 Read this README in other languages:
-    [简体中文](README_zh.md) | [繁體中文](README_zh_TW.md) | [日本語](README_ja.md) | [한국어](README_ko.md) | [Français](README_fr.md) | [Deutsch](README_de.md) | [Español](README_es.md) | [Português](README_pt.md) | [Italiano](README_it.md) | [Русский](README_ru.md)
+    <a href="README_zh.md">简体中文</a> | <a href="README_zh_TW.md">繁體中文</a> | <a href="README_ja.md">日本語</a> | <a href="README_ko.md">한국어</a> | <a href="README_fr.md">Français</a> | <a href="README_de.md">Deutsch</a> | <a href="README_es.md">Español</a> | <a href="README_pt.md">Português</a> | <a href="README_it.md">Italiano</a> | <a href="README_ru.md">Русский</a>
   </p>
 </div>
 
@@ -49,14 +49,14 @@ The agent operates as a state machine, moving through a series of defined steps 
 4.  **Fetch Subtitles**: 📥 An LLM-powered tool agent is invoked. It correctly calls the `fetch_youtube_srt` tool to download the original subtitles and saves them as an `.srt` file (e.g., `transcripts/video_id_en.srt`).
 5.  **Prepare for Translation**: ⚙️ The downloaded `.srt` file is parsed and its content is split into smaller, numbered text chunks based on the `CHUNK_SIZE`.
 6.  **Generate Translation Context**: 💡 The agent sends the *entire* original subtitle text to an LLM to generate a "translation memory." This critical document contains a glossary of key terms, descriptions of the speakers' voices and tones, and translation tips to ensure consistency.
-7.  **Translate Chunks (Loop)**: 🔁 The agent iterates through each chunk of text.
-    a.  **Translate**: The current chunk is sent to the LLM for translation, along with the translation memory for context.
-    b.  **Validate**: The LLM's output is checked for correctness. Specifically, it ensures the output is plain text and not wrapped in markdown code blocks. If validation fails, the agent retries the translation up to a defined maximum.
-    c.  **Aggregate**: The validated, translated text is added to a list. If a chunk repeatedly fails validation, the original text is used as a placeholder to prevent data loss.
+7.  **Translate Chunks (Loop)**: 🔁 The agent iterates through each chunk of text.  
+    a.  **Translate**: The current chunk is sent to the LLM for translation, along with the translation memory for context.  
+    b.  **Validate**: The LLM's output is checked for correctness. Specifically, it ensures the output is plain text and not wrapped in markdown code blocks. If validation fails, the agent retries the translation up to a defined maximum.  
+    c.  **Aggregate**: The validated, translated text is added to a list. If a chunk repeatedly fails validation, the original text is used as a placeholder to prevent data loss.  
 8.  **Finalize Translation**: ✅ Once all chunks are translated, the agent reconstructs a complete, translated subtitle list, converts it back into the SRT format, and saves it to a new file (e.g., `transcripts/video_id_en_zh-CN.srt`).
 9.  **End**: 🎉 The process is complete.
 
-## 🛠️ Setup and Installation
+## 🛠️ Quick Start
 
 **1. Clone the Repository**
 
