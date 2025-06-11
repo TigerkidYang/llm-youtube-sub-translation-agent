@@ -10,10 +10,44 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from get_sub import list_available_languages
 from Agent import translate_video_api
+from languages import LANGUAGES
+
+def get_text(key: str, **kwargs) -> str:
+    """Get translated text based on current language"""
+    if 'ui_language' not in st.session_state:
+        st.session_state.ui_language = 'en'
+    
+    text = LANGUAGES.get(st.session_state.ui_language, LANGUAGES['en']).get(key, key)
+    if kwargs:
+        try:
+            return text.format(**kwargs)
+        except:
+            return text
+    return text
+
+def language_selector():
+    """Language selector in sidebar"""
+    with st.sidebar:
+        st.markdown("---")
+        current_lang = st.session_state.get('ui_language', 'en')
+        
+        language_options = {lang_data['name']: lang_code for lang_code, lang_data in LANGUAGES.items()}
+        
+        selected_language_name = st.selectbox(
+            "🌐 " + get_text("language_selector"),
+            options=list(language_options.keys()),
+            index=list(language_options.values()).index(current_lang)
+        )
+        
+        selected_language_code = language_options[selected_language_name]
+        
+        if selected_language_code != current_lang:
+            st.session_state.ui_language = selected_language_code
+            st.rerun()
 
 # Page configuration
 st.set_page_config(
-    page_title="YouTube Subtitle AI Translator",
+    page_title=get_text("page_title"),
     page_icon="🎬",
     layout="wide",
     initial_sidebar_state="collapsed"
@@ -56,41 +90,31 @@ def extract_video_id(url: str) -> str:
     return None
 
 def main():
+    # Language selector at the top
+    language_selector()
+    
     # Main title
-    st.markdown("<h1 class='main-header'>🎬 YouTube Subtitle AI Translator</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #666;'>High-quality AI-powered YouTube video subtitle translation tool</p>", unsafe_allow_html=True)
+    st.markdown(f"<h1 class='main-header'>🎬 {get_text('page_title')}</h1>", unsafe_allow_html=True)
+    st.markdown(f"<p style='text-align: center; color: #666;'>{get_text('page_description')}</p>", unsafe_allow_html=True)
     
     # Sidebar information
     with st.sidebar:
-        st.markdown("### 🛠️ Features")
-        st.markdown("""
-        - 🧠 AI context-aware translation
-        - 🎯 Terminology consistency guarantee
-        - 📝 Multiple subtitle format support
-        - 🚀 Intelligent chunk processing
-        - ✅ Automatic format validation
-        - 🔄 yt-dlp fallback solution
-        """)
+        st.markdown(f"### 🛠️ {get_text('features')}")
+        st.markdown(get_text("features_list"))
         
-        st.markdown("### ℹ️ Usage Instructions")
-        st.markdown("""
-        1. Enter YouTube video link
-        2. Select source subtitle language
-        3. Select target translation language
-        4. Click start translation
-        5. Download translation results
-        """)
+        st.markdown(f"### ℹ️ {get_text('usage_instructions')}")
+        st.markdown(get_text("usage_list"))
 
     # Main interface
     col1, col2, col3 = st.columns([1, 2, 1])
     
     with col2:
         # Video link input
-        st.markdown("### 📺 YouTube Video Link")
+        st.markdown(f"### 📺 {get_text('video_link')}")
         video_url = st.text_input(
-            "Please enter YouTube video URL",
+            get_text("video_link_placeholder"),
             placeholder="https://www.youtube.com/watch?v=...",
-            help="Supports various YouTube link formats"
+            help=get_text("video_link_help")
         )
         
         if video_url:
@@ -98,19 +122,19 @@ def main():
             video_id = extract_video_id(video_url)
             if video_id:
                 # Display video
-                st.markdown("### 🎥 Video Preview")
+                st.markdown(f"### 🎥 {get_text('video_preview')}")
                 st.video(video_url)
                 
                 # Get available languages
-                with st.spinner("🔍 Getting available subtitle languages... (will automatically try fallback if issues occur)"):
+                with st.spinner(f"🔍 {get_text('getting_languages')}"):
                     try:
                         available_languages = list_available_languages.invoke({"video_url": video_url})
                         
                         if available_languages:
-                            st.success(f"✅ Found {len(available_languages)} available subtitle languages")
+                            st.success(get_text("found_languages", count=len(available_languages)))
                             
                             # Language selection area
-                            st.markdown("### 🌐 Language Settings")
+                            st.markdown(f"### 🌐 {get_text('language_settings')}")
                             
                             col_source, col_target = st.columns(2)
                             
@@ -120,13 +144,13 @@ def main():
                                 for lang in available_languages:
                                     display_name = f"{lang['name']} ({lang['code']})"
                                     if lang.get('is_generated'):
-                                        display_name += " [Auto-generated]"
+                                        display_name += f" [{get_text('auto_generated')}]"
                                     language_options[display_name] = lang['code']
                                 
                                 selected_source_display = st.selectbox(
-                                    "Source Subtitle Language",
+                                    get_text("source_language"),
                                     options=list(language_options.keys()),
-                                    help="Select the source subtitle language to translate"
+                                    help=get_text("source_language_help")
                                 )
                                 selected_source_code = language_options[selected_source_display]
                             
@@ -147,17 +171,17 @@ def main():
                                 }
                                 
                                 selected_target_display = st.selectbox(
-                                    "Target Translation Language", 
+                                    get_text("target_language"), 
                                     options=list(target_languages.keys()),
                                     index=2,  # Default to English
-                                    help="Select the target language to translate to"
+                                    help=get_text("target_language_help")
                                 )
                                 selected_target_code = target_languages[selected_target_display]
                             
                             # Translation button and processing
-                            st.markdown("### 🚀 Start Translation")
+                            st.markdown(f"### 🚀 {get_text('start_translation')}")
                             
-                            if st.button("🎯 Start AI Translation", type="primary", use_container_width=True):
+                            if st.button(f"🎯 {get_text('start_button')}", type="primary", use_container_width=True):
                                 # Create progress container
                                 progress_container = st.container()
                                 
@@ -168,11 +192,11 @@ def main():
                                     
                                     try:
                                         # Display start status
-                                        status_text.text("🔄 Initializing translation task...")
+                                        status_text.text(f"🔄 {get_text('initializing')}")
                                         progress_bar.progress(10)
                                         
                                         # Call translation API
-                                        status_text.text("📥 Downloading original subtitles... (using youtube-transcript-api, will auto-switch to yt-dlp if failed)")
+                                        status_text.text(f"📥 {get_text('downloading')}")
                                         progress_bar.progress(20)
                                         
                                         # Call our modified translation function
@@ -188,11 +212,11 @@ def main():
                                         
                                         # Completion status
                                         progress_bar.progress(100)
-                                        status_text.text("✅ Translation completed!")
+                                        status_text.text(f"✅ {get_text('translation_completed')}")
                                         
                                         if result and "final_srt_path" in result:
                                             st.markdown("<div class='success-box'>", unsafe_allow_html=True)
-                                            st.success("🎉 Translation task completed!")
+                                            st.success(f"🎉 {get_text('task_completed')}")
                                             st.markdown("</div>", unsafe_allow_html=True)
                                             
                                             # Read translated subtitle file
@@ -202,9 +226,9 @@ def main():
                                                     translated_content = f.read()
                                                 
                                                 # Display subtitle preview
-                                                with st.expander("📝 Subtitle Preview", expanded=False):
+                                                with st.expander(f"📝 {get_text('subtitle_preview')}", expanded=False):
                                                     st.text_area(
-                                                        "Translated subtitle content",
+                                                        get_text("translated_content"),
                                                         value=translated_content[:1000] + ("..." if len(translated_content) > 1000 else ""),
                                                         height=200,
                                                         disabled=True
@@ -213,7 +237,7 @@ def main():
                                                 # Download button
                                                 filename = f"translated_{selected_target_code}_{video_id}.srt"
                                                 st.download_button(
-                                                    label="📥 Download Translated Subtitle File",
+                                                    label=f"📥 {get_text('download_button')}",
                                                     data=translated_content,
                                                     file_name=filename,
                                                     mime="text/plain",
@@ -223,35 +247,35 @@ def main():
                                                 # Display statistics
                                                 if "translated_sub_list" in result:
                                                     total_subtitles = len(result["translated_sub_list"])
-                                                    st.info(f"📊 Translated {total_subtitles} subtitle entries")
+                                                    st.info(get_text("translated_count", count=total_subtitles))
                                             else:
-                                                st.error("❌ Translation file not found")
+                                                st.error(f"❌ {get_text('file_not_found')}")
                                         else:
-                                            st.error("❌ Error occurred during translation process")
+                                            st.error(f"❌ {get_text('translation_error')}")
                                             
                                     except Exception as e:
                                         progress_bar.progress(0)
-                                        status_text.text("❌ Translation failed")
-                                        st.error(f"Error occurred during translation: {str(e)}")
+                                        status_text.text(f"❌ {get_text('translation_failed')}")
+                                        st.error(get_text("error_occurred", error=str(e)))
                                         
                                         # Display detailed error information (for debugging)
-                                        with st.expander("🔍 Error Details", expanded=False):
+                                        with st.expander(f"🔍 {get_text('error_details')}", expanded=False):
                                             st.code(traceback.format_exc())
                         else:
-                            st.warning("⚠️ This video has no available subtitles")
+                            st.warning(f"⚠️ {get_text('no_subtitles')}")
                             
                     except Exception as e:
-                        st.error(f"❌ Failed to get subtitle languages: {str(e)}")
-                        with st.expander("🔍 Error Details", expanded=False):
+                        st.error(get_text("failed_get_languages", error=str(e)))
+                        with st.expander(f"🔍 {get_text('error_details')}", expanded=False):
                             st.code(traceback.format_exc())
                             
             else:
-                st.error("❌ Invalid YouTube link, please check URL format")
+                st.error(f"❌ {get_text('invalid_url')}")
 
     # Footer
     st.markdown("---")
     st.markdown(
-        "<p style='text-align: center; color: #888;'>Built with LangGraph + OpenAI | "
+        f"<p style='text-align: center; color: #888;'>{get_text('footer')} | "
         "<a href='https://github.com/tigerkidyang/llm-youtube-sub-translation-agent' target='_blank'>GitHub</a></p>",
         unsafe_allow_html=True
     )
