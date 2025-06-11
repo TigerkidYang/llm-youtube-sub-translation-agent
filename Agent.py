@@ -626,3 +626,145 @@ if __name__ == '__main__':
                     logger.info(f"  Chunk Prog: {idx}/{chunk_len}, Retry: {retry}, Status: {status}")
                 logger.info("---")
         logger.info("##################################################")
+
+def translate_video_api(video_url: str, source_language_code: str, target_language: str, progress_callback=None):
+    """
+    API function for Streamlit to call the translation workflow.
+    
+    Args:
+        video_url: YouTube video URL
+        source_language_code: Source language code (e.g., 'en')
+        target_language: Target language (e.g., 'zh-CN')
+        progress_callback: Optional callback function for progress updates
+    
+    Returns:
+        dict: Result containing paths and status
+    """
+    try:
+        if progress_callback:
+            progress_callback("init", 15, "Initializing translation workflow...")
+        
+        # Create initial state for the workflow
+        initial_state = {
+            "video_link": video_url,
+            "chosen_language_code": source_language_code,
+            "target_language": target_language,
+            "current_chunk_index": 0,
+            "current_chunk_retry_count": 0,
+            "translated_chunks_list": [],
+            "translated_sub_list": [],
+            "messages": []
+        }
+        
+        # Skip interactive input nodes by directly calling the subtitle extraction
+        if progress_callback:
+            progress_callback("extract", 25, "Extracting video subtitles...")
+        
+        # Get available languages to validate
+        available_languages = list_available_languages.invoke({"video_url": video_url})
+        source_lang_info = None
+        for lang in available_languages:
+            if lang['code'] == source_language_code:
+                source_lang_info = lang
+                break
+        
+        if not source_lang_info:
+            raise ValueError(f"Source language '{source_language_code}' not available for this video")
+        
+        initial_state["available_languages"] = available_languages
+        initial_state["original_language"] = source_lang_info['name']
+        
+        # Prepare messages for subtitle extraction
+        extraction_messages = [
+            SystemMessage(content=SUBTITLE_EXTRACTION_SYSTEM_PROMPT),
+            HumanMessage(content=f"Please fetch subtitles for the video: {video_url}. "
+                                f"The chosen original language code is '{source_language_code}'.")
+        ]
+        initial_state["messages"] = extraction_messages
+        
+        if progress_callback:
+            progress_callback("download", 30, "Downloading original subtitle file...")
+        
+        # Execute the workflow step by step
+        current_state = initial_state
+        
+        # Step 1: Extract subtitles
+        current_state.update(get_sub_node(current_state))
+        
+        # Continue with extraction if needed
+        while should_continue_extraction(current_state) == "continue_extraction":
+            if progress_callback:
+                progress_callback("extract_continue", 35, "Processing subtitle download...")
+            tool_node = ToolNode(tools=extraction_tools)
+            tool_result = tool_node.invoke(current_state)
+            current_state.update(tool_result)
+            current_state.update(get_sub_node(current_state))
+        
+        if should_continue_extraction(current_state) != "start_translation":
+            raise ValueError("Failed to extract subtitles")
+        
+        if progress_callback:
+            progress_callback("prepare", 40, "Preparing translation data...")
+        
+        # Step 2: Prepare translation
+        current_state.update(prepare_translation_node(current_state))
+        
+        if progress_callback:
+            progress_callback("context", 45, "Generating translation context...")
+        
+        # Step 3: Generate translation context
+        current_state.update(generate_translation_context_node(current_state))
+        
+        # Step 4: Translate chunks
+        total_chunks = len(current_state.get('sub_chunks_list', []))
+        
+        while should_translate_more_chunks(current_state) == "translate_next_chunk":
+            current_chunk = current_state.get('current_chunk_index', 0)
+            progress_percent = 50 + int((current_chunk / max(total_chunks, 1)) * 40)
+            
+            if progress_callback:
+                progress_callback("translate", progress_percent, 
+                                f"Translating subtitle chunk {current_chunk + 1}/{total_chunks}...")
+            
+            # Translate current chunk
+            current_state.update(translate_current_chunk_node(current_state))
+        
+            # Validate translation
+            current_state.update(validate_translation_format_node(current_state))
+            
+            # Handle validation result
+            validation_result = decide_after_validation(current_state)
+            if validation_result == "retry_chunk_translation":
+                # Retry if needed
+                continue
+            
+            # Aggregate translation
+            current_state.update(aggregate_translation_node(current_state))
+        
+        if progress_callback:
+            progress_callback("finalize", 90, "Consolidating translation results...")
+        
+        # Step 5: Finalize translation
+        current_state.update(finalize_translation_node(current_state))
+        
+        if progress_callback:
+            progress_callback("complete", 100, "Translation completed!")
+        
+        # Return results
+        return {
+            "success": True,
+            "final_srt_path": current_state.get("final_srt_path"),
+            "original_srt_path": current_state.get("original_srt_path"),
+            "sub_list": current_state.get("sub_list"),
+            "translated_sub_list": current_state.get("translated_sub_list"),
+            "total_chunks": total_chunks
+        }
+        
+    except Exception as e:
+        logger.error(f"Translation API error: {e}", exc_info=True)
+        if progress_callback:
+            progress_callback("error", 0, f"Translation failed: {str(e)}")
+        return {
+            "success": False,
+            "error": str(e)
+        }

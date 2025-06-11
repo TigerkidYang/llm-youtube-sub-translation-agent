@@ -3,3 +3,5 @@ langgraph
 python-dotenv
 youtube-transcript-api
 langchain-openai
+streamlit
+yt-dlp
