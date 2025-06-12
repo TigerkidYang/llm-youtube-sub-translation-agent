@@ -58,7 +58,14 @@ LANGUAGES = {
         "no_subtitles": "This video has no available subtitles",
         "failed_get_languages": "Failed to get subtitle languages: {error}",
         "invalid_url": "Invalid YouTube link, please check URL format",
-        "footer": "Built with LangGraph + OpenAI"
+        "footer": "Built with LangGraph + OpenAI",
+        "video_player": "🎬 Video Player with Synchronized Subtitles",
+        "subtitle_display": "Subtitle Display",
+        "current_subtitle": "Current Subtitle",
+        "subtitle_timeline": "Subtitle Timeline",
+        "click_to_jump": "Click to jump to this time",
+        "no_subtitle_at_time": "No subtitle at this time",
+        "video_player_help": "Video will play with synchronized translated subtitles"
     },
     "zh": {
         "name": "简体中文",
@@ -117,7 +124,14 @@ LANGUAGES = {
         "no_subtitles": "该视频没有可用的字幕",
         "failed_get_languages": "获取字幕语言失败: {error}",
         "invalid_url": "无效的YouTube链接，请检查URL格式",
-        "footer": "基于 LangGraph + OpenAI 构建"
+        "footer": "基于 LangGraph + OpenAI 构建",
+        "video_player": "🎬 视频播放器与同步字幕",
+        "subtitle_display": "字幕显示",
+        "current_subtitle": "当前字幕",
+        "subtitle_timeline": "字幕时间轴",
+        "click_to_jump": "点击跳转到此时间",
+        "no_subtitle_at_time": "此时间没有字幕",
+        "video_player_help": "视频将播放带有同步翻译的字幕"
     },
     "zh-TW": {
         "name": "繁體中文",
@@ -176,7 +190,14 @@ LANGUAGES = {
         "no_subtitles": "該視頻沒有可用的字幕",
         "failed_get_languages": "獲取字幕語言失敗: {error}",
         "invalid_url": "無效的YouTube鏈接，請檢查URL格式",
-        "footer": "基於 LangGraph + OpenAI 構建"
+        "footer": "基於 LangGraph + OpenAI 構建",
+        "video_player": "🎬 視頻播放器與同步字幕",
+        "subtitle_display": "字幕顯示",
+        "current_subtitle": "當前字幕",
+        "subtitle_timeline": "字幕時間軸",
+        "click_to_jump": "點擊跳轉到此時間",
+        "no_subtitle_at_time": "此時間沒有字幕",
+        "video_player_help": "視頻將播放帶有同步翻譯的字幕"
     },
     "ja": {
         "name": "日本語",
@@ -235,7 +256,14 @@ LANGUAGES = {
         "no_subtitles": "このビデオには利用可能な字幕がありません",
         "failed_get_languages": "字幕言語の取得に失敗しました: {error}",
         "invalid_url": "無効なYouTubeリンクです。URL形式を確認してください",
-        "footer": "LangGraph + OpenAIで構築"
+        "footer": "LangGraph + OpenAIで構築",
+        "video_player": "🎬 ビデオプレーヤーと同期字幕",
+        "subtitle_display": "字幕表示",
+        "current_subtitle": "現在の字幕",
+        "subtitle_timeline": "字幕タイムライン",
+        "click_to_jump": "この時間にジャンプ",
+        "no_subtitle_at_time": "この時間に字幕はありません",
+        "video_player_help": "ビデオは同期した翻訳字幕で再生されます"
     },
     "ko": {
         "name": "한국어",
@@ -294,7 +322,14 @@ LANGUAGES = {
         "no_subtitles": "이 비디오에는 사용 가능한 자막이 없습니다",
         "failed_get_languages": "자막 언어 가져오기 실패: {error}",
         "invalid_url": "유효하지 않은 YouTube 링크입니다. URL 형식을 확인하세요",
-        "footer": "LangGraph + OpenAI로 구축"
+        "footer": "LangGraph + OpenAI로 구축",
+        "video_player": "🎬 비디오 플레이어와 동기화된 자막",
+        "subtitle_display": "자막 표시",
+        "current_subtitle": "현재 자막",
+        "subtitle_timeline": "자막 타임라인",
+        "click_to_jump": "이 시간으로 점프",
+        "no_subtitle_at_time": "이 시간에는 자막이 없습니다",
+        "video_player_help": "비디오는 동기화된 번역 자막으로 재생됩니다"
     },
     "fr": {
         "name": "Français",
@@ -353,7 +388,14 @@ LANGUAGES = {
         "no_subtitles": "Cette vidéo n'a pas de sous-titres disponibles",
         "failed_get_languages": "Échec de récupération des langues de sous-titres : {error}",
         "invalid_url": "Lien YouTube invalide, veuillez vérifier le format de l'URL",
-        "footer": "Construit avec LangGraph + OpenAI"
+        "footer": "Construit avec LangGraph + OpenAI",
+        "video_player": "🎬 Lecteur Vidéo avec Sous-titres Synchronisés",
+        "subtitle_display": "Affichage des Sous-titres",
+        "current_subtitle": "Sous-titre Actuel",
+        "subtitle_timeline": "Ligne de Temps des Sous-titres",
+        "click_to_jump": "Cliquez pour sauter à ce temps",
+        "no_subtitle_at_time": "Pas de sous-titre à ce temps",
+        "video_player_help": "La vidéo sera lue avec des sous-titres traduits synchronisés"
     },
     "de": {
         "name": "Deutsch",
@@ -412,7 +454,14 @@ LANGUAGES = {
         "no_subtitles": "Dieses Video hat keine verfügbaren Untertitel",
         "failed_get_languages": "Abrufen der Untertitelsprachen fehlgeschlagen: {error}",
         "invalid_url": "Ungültiger YouTube-Link, bitte überprüfen Sie das URL-Format",
-        "footer": "Erstellt mit LangGraph + OpenAI"
+        "footer": "Erstellt mit LangGraph + OpenAI",
+        "video_player": "🎬 Video-Player mit synchronisierten Untertiteln",
+        "subtitle_display": "Untertitel-Anzeige",
+        "current_subtitle": "Aktueller Untertitel",
+        "subtitle_timeline": "Untertitel-Zeitleiste",
+        "click_to_jump": "Zum Zeitpunkt springen",
+        "no_subtitle_at_time": "Kein Untertitel zu dieser Zeit",
+        "video_player_help": "Das Video wird mit synchronisierten übersetzten Untertiteln abgespielt"
     },
     "es": {
         "name": "Español",
@@ -471,7 +520,14 @@ LANGUAGES = {
         "no_subtitles": "Este video no tiene subtítulos disponibles",
         "failed_get_languages": "Falló la obtención de idiomas de subtítulos: {error}",
         "invalid_url": "Enlace de YouTube inválido, por favor verifique el formato de URL",
-        "footer": "Construido con LangGraph + OpenAI"
+        "footer": "Construido con LangGraph + OpenAI",
+        "video_player": "🎬 Reproductor de Vídeo con Subtítulos Sincronizados",
+        "subtitle_display": "Mostrar Subtítulos",
+        "current_subtitle": "Subtítulo Actual",
+        "subtitle_timeline": "Línea de Tiempo de Subtítulos",
+        "click_to_jump": "Hacer clic para saltar a este tiempo",
+        "no_subtitle_at_time": "No hay subtítulo en este tiempo",
+        "video_player_help": "El vídeo se reproducirá con subtítulos traducidos sincronizados"
     },
     "ru": {
         "name": "Русский",
@@ -530,7 +586,14 @@ LANGUAGES = {
         "no_subtitles": "У этого видео нет доступных субтитров",
         "failed_get_languages": "Не удалось получить языки субтитров: {error}",
         "invalid_url": "Недействительная ссылка YouTube, пожалуйста, проверьте формат URL",
-        "footer": "Создано с помощью LangGraph + OpenAI"
+        "footer": "Создано с помощью LangGraph + OpenAI",
+        "video_player": "🎬 Видеоплеер с синхронизированными субтитрами",
+        "subtitle_display": "Отображение субтитров",
+        "current_subtitle": "Текущий субтитр",
+        "subtitle_timeline": "Временная шкала субтитров",
+        "click_to_jump": "Нажмите для перехода к этому времени",
+        "no_subtitle_at_time": "Субтитров нет в это время",
+        "video_player_help": "Видео будет воспроизводиться с синхронизированными переведенными субтитрами"
     },
     "it": {
         "name": "Italiano",
@@ -589,7 +652,14 @@ LANGUAGES = {
         "no_subtitles": "Questo video non ha sottotitoli disponibili",
         "failed_get_languages": "Fallito nell'ottenere le lingue dei sottotitoli: {error}",
         "invalid_url": "Link YouTube non valido, controlla il formato URL",
-        "footer": "Costruito con LangGraph + OpenAI"
+        "footer": "Costruito con LangGraph + OpenAI",
+        "video_player": "🎬 Lettore Video con Sottotitoli Sincronizzati",
+        "subtitle_display": "Visualizzazione Sottotitoli",
+        "current_subtitle": "Sottotitolo Attuale",
+        "subtitle_timeline": "Lina di Tempo dei Sottotitoli",
+        "click_to_jump": "Clicca per saltare a questo tempo",
+        "no_subtitle_at_time": "Nessun sottotitolo a questo tempo",
+        "video_player_help": "Il video verrà riprodotto con sottotitoli tradotti sincronizzati"
     },
     "pt": {
         "name": "Português",
@@ -648,6 +718,13 @@ LANGUAGES = {
         "no_subtitles": "Este vídeo não tem legendas disponíveis",
         "failed_get_languages": "Falhou ao obter idiomas das legendas: {error}",
         "invalid_url": "Link YouTube inválido, por favor verifique o formato da URL",
-        "footer": "Construído com LangGraph + OpenAI"
+        "footer": "Construído com LangGraph + OpenAI",
+        "video_player": "🎬 Reprodutor de Vídeo com Legendas Sincronizadas",
+        "subtitle_display": "Exibição de Legendas",
+        "current_subtitle": "Legenda Atual",
+        "subtitle_timeline": "Linha de Tempo das Legendas",
+        "click_to_jump": "Clique para saltar para este tempo",
+        "no_subtitle_at_time": "Não há legenda para este tempo",
+        "video_player_help": "O vídeo será reproduzido com legendas traduzidas sincronizadas"
     }
 } 

@@ -4,6 +4,8 @@ import sys
 from typing import Dict, List
 import tempfile
 import traceback
+import re
+import json
 
 # Add current directory to Python path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -56,6 +58,14 @@ st.set_page_config(
 # Custom CSS styles
 st.markdown("""
 <style>
+    /* Maximize page width */
+    .main .block-container {
+        max-width: 1400px;
+        padding-top: 2rem;
+        padding-left: 2rem;
+        padding-right: 2rem;
+    }
+    
     .main-header {
         text-align: center;
         color: #1f77b4;
@@ -71,12 +81,23 @@ st.markdown("""
         border: 1px solid #c3e6cb;
         margin: 1rem 0;
     }
+    
+    /* Responsive video container */
+    .video-container {
+        width: 100%;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+    
+    /* Hide streamlit menu and footer for cleaner look */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
 </style>
 """, unsafe_allow_html=True)
 
 def extract_video_id(url: str) -> str:
     """Extract video ID from YouTube URL"""
-    import re
     patterns = [
         r'(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=([^&]+)',
         r'(?:https?:\/\/)?(?:www\.)?youtu\.be\/([^?]+)',
@@ -88,6 +109,257 @@ def extract_video_id(url: str) -> str:
         if match:
             return match.group(1)
     return None
+
+def parse_srt_content(srt_content: str) -> List[Dict]:
+    """Parse SRT content and return list of subtitle objects with timestamps in seconds"""
+    subtitles = []
+    if not srt_content:
+        return subtitles
+    
+    # SRT pattern to match subtitle blocks
+    pattern = re.compile(
+        r'(\d+)\s*\n'
+        r'(\d{2}:\d{2}:\d{2},\d{3})\s*-->\s*'
+        r'(\d{2}:\d{2}:\d{2},\d{3})\s*\n'
+        r'((?:.+\n?)+)', 
+        re.MULTILINE
+    )
+    
+    def srt_time_to_seconds(time_str):
+        """Convert SRT time format (HH:MM:SS,mmm) to seconds"""
+        time_parts = time_str.replace(',', '.').split(':')
+        hours = int(time_parts[0])
+        minutes = int(time_parts[1])
+        seconds = float(time_parts[2])
+        return hours * 3600 + minutes * 60 + seconds
+    
+    for match in pattern.finditer(srt_content):
+        index = int(match.group(1))
+        start_time = srt_time_to_seconds(match.group(2))
+        end_time = srt_time_to_seconds(match.group(3))
+        text = match.group(4).strip()
+        
+        # Clean up text - remove extra line breaks and spaces
+        text = ' '.join(line.strip() for line in text.splitlines() if line.strip())
+        
+        subtitles.append({
+            'index': index,
+            'start': start_time,
+            'end': end_time,
+            'text': text
+        })
+    
+    return subtitles
+
+def create_video_player_with_subtitles(video_url: str, video_id: str, subtitles_data: List[Dict]):
+    """Create a video player with synchronized subtitle display"""
+    
+    # Convert subtitles to JSON for JavaScript
+    subtitles_json = json.dumps(subtitles_data)
+    
+    # Create HTML for the video player with subtitles
+    html_code = f"""
+    <div style="width: 100%; margin: 0; padding: 0;">
+        <div style="position: relative; background: #000; border-radius: 12px; overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.3); aspect-ratio: 16/9; max-height: 80vh;">
+            <iframe id="youtube-player" 
+                width="100%" 
+                height="100%" 
+                src="https://www.youtube.com/embed/{video_id}?enablejsapi=1&rel=0&modestbranding=1&iv_load_policy=3" 
+                frameborder="0" 
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                allowfullscreen>
+            </iframe>
+            
+            <!-- Subtitle overlay -->
+            <div id="subtitle-overlay" style="
+                position: absolute; 
+                bottom: 6%; 
+                left: 50%; 
+                transform: translateX(-50%); 
+                background: rgba(0, 0, 0, 0.85); 
+                color: white; 
+                padding: 12px 20px; 
+                border-radius: 8px; 
+                font-size: calc(14px + 0.5vw); 
+                font-weight: 500; 
+                text-align: center; 
+                max-width: 85%; 
+                word-wrap: break-word;
+                display: none;
+                z-index: 100;
+                text-shadow: 2px 2px 6px rgba(0,0,0,0.9);
+                line-height: 1.4;
+                border: 1px solid rgba(255,255,255,0.1);
+                backdrop-filter: blur(4px);
+            ">
+                {get_text('no_subtitle_at_time')}
+            </div>
+        </div>
+        
+        <!-- Control panel -->
+        <div style="margin-top: 15px; text-align: center; color: #666; font-size: 14px;">
+            <span id="current-time-display">00:00</span> | 
+            <span id="current-subtitle-status">{get_text('no_subtitle_at_time')}</span>
+        </div>
+    </div>
+
+    <script>
+        // Subtitles data
+        const subtitles = {subtitles_json};
+        let currentSubtitleIndex = -1;
+        let player;
+        let updateInterval;
+        
+        // Load YouTube IFrame API
+        function loadYouTubeAPI() {{
+            if (typeof YT !== 'undefined' && YT.Player) {{
+                initializePlayer();
+                return;
+            }}
+            
+            const tag = document.createElement('script');
+            tag.src = 'https://www.youtube.com/iframe_api';
+            const firstScriptTag = document.getElementsByTagName('script')[0];
+            firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+            
+            window.onYouTubeIframeAPIReady = initializePlayer;
+        }}
+        
+        function initializePlayer() {{
+            player = new YT.Player('youtube-player', {{
+                events: {{
+                    'onReady': onPlayerReady,
+                    'onStateChange': onPlayerStateChange
+                }}
+            }});
+        }}
+        
+        function onPlayerReady(event) {{
+            console.log('YouTube player ready');
+            startSubtitleSync();
+        }}
+        
+        function onPlayerStateChange(event) {{
+            // Pause/resume subtitle sync based on player state
+            if (event.data === YT.PlayerState.PLAYING) {{
+                startSubtitleSync();
+            }} else if (event.data === YT.PlayerState.PAUSED) {{
+                stopSubtitleSync();
+            }}
+        }}
+        
+        function startSubtitleSync() {{
+            if (updateInterval) clearInterval(updateInterval);
+            updateInterval = setInterval(() => {{
+                if (player && player.getCurrentTime) {{
+                    const currentTime = player.getCurrentTime();
+                    updateCurrentSubtitle(currentTime);
+                    updateTimeDisplay(currentTime);
+                }}
+            }}, 300); // Update every 300ms for smoother experience
+        }}
+        
+        function stopSubtitleSync() {{
+            if (updateInterval) {{
+                clearInterval(updateInterval);
+                updateInterval = null;
+            }}
+        }}
+        
+        function updateCurrentSubtitle(currentTime) {{
+            const subtitle = findCurrentSubtitle(currentTime);
+            const subtitleOverlay = document.getElementById('subtitle-overlay');
+            const statusDisplay = document.getElementById('current-subtitle-status');
+            
+            if (subtitle) {{
+                const subtitleIndex = subtitles.indexOf(subtitle);
+                if (subtitleIndex !== currentSubtitleIndex) {{
+                    currentSubtitleIndex = subtitleIndex;
+                    
+                    // Update overlay with smooth transition
+                    subtitleOverlay.style.opacity = '0';
+                    setTimeout(() => {{
+                        subtitleOverlay.textContent = subtitle.text;
+                        subtitleOverlay.style.display = 'block';
+                        subtitleOverlay.style.opacity = '1';
+                    }}, 100);
+                    
+                    // Update status
+                    statusDisplay.textContent = `字幕 ${{subtitleIndex + 1}}/${{subtitles.length}}: ${{subtitle.text.substring(0, 50)}}${{subtitle.text.length > 50 ? '...' : ''}}`;
+                }}
+            }} else {{
+                // No subtitle at current time
+                if (currentSubtitleIndex !== -1) {{
+                    currentSubtitleIndex = -1;
+                    subtitleOverlay.style.opacity = '0';
+                    setTimeout(() => {{
+                        subtitleOverlay.style.display = 'none';
+                    }}, 200);
+                    statusDisplay.textContent = '{get_text('no_subtitle_at_time')}';
+                }}
+            }}
+        }}
+        
+        function updateTimeDisplay(currentTime) {{
+            const timeDisplay = document.getElementById('current-time-display');
+            timeDisplay.textContent = formatTime(currentTime);
+        }}
+        
+        function findCurrentSubtitle(currentTime) {{
+            return subtitles.find(subtitle => 
+                currentTime >= subtitle.start && currentTime <= subtitle.end
+            );
+        }}
+        
+        function formatTime(seconds) {{
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const secs = Math.floor(seconds % 60);
+            
+            if (hours > 0) {{
+                return `${{hours}}:${{minutes.toString().padStart(2, '0')}}:${{secs.toString().padStart(2, '0')}}`;
+            }} else {{
+                return `${{minutes}}:${{secs.toString().padStart(2, '0')}}`;
+            }}
+        }}
+        
+        // Add CSS for smooth transitions and responsive design
+        const style = document.createElement('style');
+        style.textContent = `
+            #subtitle-overlay {{
+                transition: opacity 0.2s ease-in-out;
+            }}
+            #current-subtitle-status {{
+                transition: color 0.3s ease;
+            }}
+            
+            /* Responsive subtitle font size */
+            @media (max-width: 768px) {{
+                #subtitle-overlay {{
+                    font-size: 16px !important;
+                    padding: 10px 16px !important;
+                }}
+            }}
+            
+            @media (min-width: 1200px) {{
+                #subtitle-overlay {{
+                    font-size: 20px !important;
+                }}
+            }}
+        `;
+        document.head.appendChild(style);
+        
+        // Initialize when page loads
+        loadYouTubeAPI();
+        
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {{
+            if (updateInterval) clearInterval(updateInterval);
+        }});
+    </script>
+    """
+    
+    return html_code
 
 def main():
     # Language selector at the top
@@ -105,8 +377,9 @@ def main():
         st.markdown(f"### ℹ️ {get_text('usage_instructions')}")
         st.markdown(get_text("usage_list"))
 
-    # Main interface
-    col1, col2, col3 = st.columns([1, 2, 1])
+    # Main interface - full width
+    # Create a centered container for form elements
+    col1, col2, col3 = st.columns([1, 3, 1])
     
     with col2:
         # Video link input
@@ -276,29 +549,81 @@ def main():
                                                 with open(final_srt_path, 'r', encoding='utf-8') as f:
                                                     translated_content = f.read()
                                                 
-                                                # Display subtitle preview
-                                                with st.expander(f"📝 {get_text('subtitle_preview')}", expanded=False):
+                                                # Parse subtitles for video player
+                                                parsed_subtitles = parse_srt_content(translated_content)
+                                                
+                                                # Create tabs for different views
+                                                tab1, tab2, tab3 = st.tabs([
+                                                    f"🎬 {get_text('video_player')}", 
+                                                    f"📝 {get_text('subtitle_preview')}", 
+                                                    f"📥 {get_text('download_button')}"
+                                                ])
+                                                
+                                                with tab1:
+                                                    # Video player with synchronized subtitles
+                                                    st.markdown(f"### {get_text('video_player')}")
+                                                    st.info(f"ℹ️ {get_text('video_player_help')}")
+                                                    
+                                                    if parsed_subtitles:
+                                                        # Create the video player HTML
+                                                        player_html = create_video_player_with_subtitles(
+                                                            video_url, video_id, parsed_subtitles
+                                                        )
+                                                        
+                                                        # Display the video player
+                                                        st.components.v1.html(
+                                                            player_html, 
+                                                            height=650,
+                                                            scrolling=False
+                                                        )
+                                                    else:
+                                                        st.warning("⚠️ Unable to parse subtitles for video player")
+                                                
+                                                with tab2:
+                                                    # Display subtitle preview
+                                                    st.markdown(f"### 📝 {get_text('subtitle_preview')}")
                                                     st.text_area(
                                                         get_text("translated_content"),
                                                         value=translated_content[:1000] + ("..." if len(translated_content) > 1000 else ""),
                                                         height=200,
                                                         disabled=True
                                                     )
+                                                    
+                                                    # Show full content in expander
+                                                    with st.expander("🔍 View Full Content", expanded=False):
+                                                        st.text_area(
+                                                            "Complete translated subtitles",
+                                                            value=translated_content,
+                                                            height=400,
+                                                            disabled=True
+                                                        )
                                                 
-                                                # Download button
-                                                filename = f"translated_{selected_target_code}_{video_id}.srt"
-                                                st.download_button(
-                                                    label=f"📥 {get_text('download_button')}",
-                                                    data=translated_content,
-                                                    file_name=filename,
-                                                    mime="text/plain",
-                                                    use_container_width=True
-                                                )
-                                                
-                                                # Display statistics
-                                                if "translated_sub_list" in result:
-                                                    total_subtitles = len(result["translated_sub_list"])
-                                                    st.info(get_text("translated_count", count=total_subtitles))
+                                                with tab3:
+                                                    # Download button and statistics
+                                                    st.markdown(f"### 📥 {get_text('download_button')}")
+                                                    
+                                                    # Download button
+                                                    filename = f"translated_{selected_target_code}_{video_id}.srt"
+                                                    st.download_button(
+                                                        label=f"📥 {get_text('download_button')}",
+                                                        data=translated_content,
+                                                        file_name=filename,
+                                                        mime="text/plain",
+                                                        use_container_width=True
+                                                    )
+                                                    
+                                                    # Display statistics
+                                                    if "translated_sub_list" in result:
+                                                        total_subtitles = len(result["translated_sub_list"])
+                                                        st.info(get_text("translated_count", count=total_subtitles))
+                                                    
+                                                    # Additional file information
+                                                    st.markdown("**File Information:**")
+                                                    st.write(f"- File size: {len(translated_content)} characters")
+                                                    st.write(f"- Subtitle entries: {len(parsed_subtitles) if parsed_subtitles else 0}")
+                                                    st.write(f"- Source language: {selected_source_display}")
+                                                    st.write(f"- Target language: {selected_target_display}")
+                                                    st.write(f"- Models used: {selected_extraction_display} (extraction), {selected_translation_display} (translation)")
                                             else:
                                                 st.error(f"❌ {get_text('file_not_found')}")
                                         else:
