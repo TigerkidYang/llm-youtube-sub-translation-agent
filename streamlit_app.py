@@ -9,7 +9,7 @@ import traceback
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from get_sub import list_available_languages
-from Agent import translate_video_api
+from Agent import translate_video_api, EXTRACTION_MODEL_NAME, TRANSLATION_MODEL_NAME
 from languages import LANGUAGES
 
 def get_text(key: str, **kwargs) -> str:
@@ -178,6 +178,55 @@ def main():
                                 )
                                 selected_target_code = target_languages[selected_target_display]
                             
+                            # Model selection area
+                            st.markdown(f"### {get_text('model_settings')}")
+                            
+                            # OpenAI model options
+                            openai_models = {
+                                "GPT-4o": "gpt-4o",
+                                "GPT-4o mini": "gpt-4o-mini",
+                                "GPT-4 Turbo": "gpt-4-turbo",
+                                "GPT-4": "gpt-4",
+                                "GPT-4.1": "gpt-4.1",
+                                "GPT-3.5 Turbo": "gpt-3.5-turbo",
+                                "o1 Preview": "o1-preview",
+                                "o1 Mini": "o1-mini",
+                                "o3 Mini": "o3-mini"
+                            }
+                            
+                            # Function to get display name from model code
+                            def get_model_display_name(model_code):
+                                for display_name, code in openai_models.items():
+                                    if code == model_code:
+                                        return display_name
+                                return "o3 Mini"  # fallback
+                            
+                            # Get default indices based on .env settings
+                            default_extraction_display = get_model_display_name(EXTRACTION_MODEL_NAME)
+                            default_translation_display = get_model_display_name(TRANSLATION_MODEL_NAME)
+                            default_extraction_index = list(openai_models.keys()).index(default_extraction_display)
+                            default_translation_index = list(openai_models.keys()).index(default_translation_display)
+                            
+                            col_extract_model, col_translate_model = st.columns(2)
+                            
+                            with col_extract_model:
+                                selected_extraction_display = st.selectbox(
+                                    get_text("extraction_model"),
+                                    options=list(openai_models.keys()),
+                                    index=default_extraction_index,  # Use .env default
+                                    help=get_text("extraction_model_help")
+                                )
+                                selected_extraction_model = openai_models[selected_extraction_display]
+                            
+                            with col_translate_model:
+                                selected_translation_display = st.selectbox(
+                                    get_text("translation_model"),
+                                    options=list(openai_models.keys()),
+                                    index=default_translation_index,  # Use .env default
+                                    help=get_text("translation_model_help")
+                                )
+                                selected_translation_model = openai_models[selected_translation_display]
+                            
                             # Translation button and processing
                             st.markdown(f"### 🚀 {get_text('start_translation')}")
                             
@@ -204,6 +253,8 @@ def main():
                                             video_url=video_url,
                                             source_language_code=selected_source_code,
                                             target_language=selected_target_code,
+                                            extraction_model=selected_extraction_model,
+                                            translation_model=selected_translation_model,
                                             progress_callback=lambda step, progress, message: (
                                                 progress_bar.progress(progress),
                                                 status_text.text(f"🔄 {message}")

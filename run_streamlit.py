@@ -8,6 +8,8 @@ import sys
 import subprocess
 from dotenv import load_dotenv
 
+load_dotenv()
+
 def check_requirements():
     """Check necessary dependencies and configuration"""
     try:

@@ -627,7 +627,8 @@ if __name__ == '__main__':
                 logger.info("---")
         logger.info("##################################################")
 
-def translate_video_api(video_url: str, source_language_code: str, target_language: str, progress_callback=None):
+def translate_video_api(video_url: str, source_language_code: str, target_language: str, 
+                       extraction_model: str = None, translation_model: str = None, progress_callback=None):
     """
     API function for Streamlit to call the translation workflow.
     
@@ -635,14 +636,25 @@ def translate_video_api(video_url: str, source_language_code: str, target_langua
         video_url: YouTube video URL
         source_language_code: Source language code (e.g., 'en')
         target_language: Target language (e.g., 'zh-CN')
+        extraction_model: Model for subtitle extraction (optional, defaults to environment variable or o3-mini)
+        translation_model: Model for translation (optional, defaults to environment variable or o3-mini)
         progress_callback: Optional callback function for progress updates
     
     Returns:
         dict: Result containing paths and status
     """
     try:
+        # Set model names, prioritizing function parameters over environment variables
+        extraction_model_name = extraction_model or EXTRACTION_MODEL_NAME
+        translation_model_name = translation_model or TRANSLATION_MODEL_NAME
+        
+        # Create model instances with the specified models
+        global llm, translation_llm
+        llm = ChatOpenAI(model=extraction_model_name).bind_tools(extraction_tools)
+        translation_llm = ChatOpenAI(model=translation_model_name)
+        
         if progress_callback:
-            progress_callback("init", 15, "Initializing translation workflow...")
+            progress_callback("init", 15, f"Initializing translation workflow with models: {extraction_model_name} & {translation_model_name}...")
         
         # Create initial state for the workflow
         initial_state = {
