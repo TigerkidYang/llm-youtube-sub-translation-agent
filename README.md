@@ -1,11 +1,12 @@
 <div align="center">
-  <h1>🎬 LLM YouTube Subtitle Translation Agent 🌍</h1>
+  <h1>🎬 YouTube Subtitle AI Translator 🌍</h1>
   <p>
-    An advanced AI agent for high-quality, context-aware translation of YouTube video subtitles using LangGraph.
+    An advanced AI-powered web application for high-quality, context-aware translation of YouTube video subtitles with real-time video player integration.
   </p>
   <p>
     <!-- Badges -->
     <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.9%2B-blue.svg" alt="Python 3.9+"></a>
+    <a href="https://streamlit.io/"><img src="https://img.shields.io/badge/Streamlit-1.46%2B-FF6B6B.svg" alt="Streamlit 1.46+"></a>
     <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
     <a href="https://github.com/tigerkidyang/llm-youtube-sub-translation-agent/issues"><img src="https://img.shields.io/github/issues/tigerkidyang/llm-youtube-sub-translation-agent" alt="Issues"></a>
     <a href="https://github.com/tigerkidyang/llm-youtube-sub-translation-agent/pulls"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg" alt="PRs Welcome"></a>
@@ -17,46 +18,52 @@
   </p>
 </div>
 
-This project implements an advanced, multi-step AI agent that automates the translation of YouTube video subtitles. It uses the LangGraph framework to create a robust and intelligent pipeline that goes beyond simple translation to ensure contextual consistency and high quality.
+This project provides a sophisticated web-based application for translating YouTube video subtitles using advanced AI technology. Built with Streamlit and powered by LangGraph, it offers an intuitive interface with real-time video playback, synchronized subtitle display, and intelligent caching for optimal performance.
 
-The agent first fetches the subtitles, analyzes the full text to generate a "translation memory" (including a glossary and style guide), and then translates the content chunk by chunk, validating each output before finalizing the result into a new `.srt` file.
+## 🌟 Key Features
 
-## 📖 Table of Contents
+### 🎥 **Interactive Video Experience**
 
-- [✨ Key Features](#-key-features)
-- [🚀 How It Works: The Agent Workflow](#-how-it-works-the-agent-workflow)
-- [🛠️ Setup and Installation](#️-setup-and-installation)
-- [🏃 How to Run](#-how-to-run)
-- [🤝 Contributing](#-contributing)
-- [📄 License](#-license)
+- **Embedded YouTube Player**: Watch videos directly in the app with synchronized subtitles
+- **Subtitle Overlay Control**: Toggle video overlay subtitles on/off with one click
+- **Real-time Synchronization**: Subtitles automatically sync with video playback
+- **Full-screen Support**: Optimized player experience for all screen sizes
 
-## ✨ Key Features
+### 🧠 **AI-Powered Translation**
 
--   **Interactive Setup**: 🗣️ Prompts the user for the YouTube video link and desired original/target languages.
--   **Context-Aware Translation**: 🧠 Before translating, the agent generates a comprehensive context guide (video basis, glossary, voice descriptions, and style tips) to ensure high-quality, consistent translations.
--   **Chunk-Based Processing**: 🧩 Splits subtitles into manageable chunks for efficient and reliable processing by the language model.
--   **Robust and Self-Correcting**: 💪 Includes a validation step that checks the LLM's translated output for formatting errors (like unwanted markdown) and automatically retries with corrective instructions.
--   **Stateful Workflow**: 🔄 Built with `langgraph` to manage the complex, multi-step process in a clear, resilient, and observable way.
--   **Automatic File Management**: 📂 Intelligently names and saves both the original and final translated `.srt` files in a dedicated `transcripts` directory.
+- **Context-Aware Processing**: Generates comprehensive translation memory including glossary, speaker analysis, and style guidelines
+- **Chunk-Based Translation**: Intelligently processes subtitles in manageable segments for accuracy
+- **Quality Validation**: Automatic format checking and retry mechanisms for reliable output
+- **Multiple AI Models**: Configurable models for extraction, context generation, and translation
 
-## 🚀 How It Works: The Agent Workflow
+### 🚀 **Performance & Reliability**
 
-The agent operates as a state machine, moving through a series of defined steps to complete the translation task.
+- **Smart Caching**: Automatically detects and reuses existing translations
+- **Dual Extraction Methods**: Primary youtube-transcript-api with yt-dlp fallback
+- **Progress Tracking**: Real-time translation progress with detailed status updates
+- **Error Recovery**: Robust error handling with graceful fallbacks
 
-1.  **Get Video Link**: 🔗 The agent starts by asking the user for a YouTube video URL.
-2.  **List Available Languages**: 📜 It calls the YouTube Transcript API to find all available subtitle languages for the video and displays them.
-3.  **Get Language Choices**: 🎯 The user selects the original subtitle language to translate from and specifies the target language.
-4.  **Fetch Subtitles**: 📥 An LLM-powered tool agent is invoked. It correctly calls the `fetch_youtube_srt` tool to download the original subtitles and saves them as an `.srt` file (e.g., `transcripts/video_id_en.srt`).
-5.  **Prepare for Translation**: ⚙️ The downloaded `.srt` file is parsed and its content is split into smaller, numbered text chunks based on the `CHUNK_SIZE`.
-6.  **Generate Translation Context**: 💡 The agent sends the *entire* original subtitle text to an LLM to generate a "translation memory." This critical document contains a glossary of key terms, descriptions of the speakers' voices and tones, and translation tips to ensure consistency.
-7.  **Translate Chunks (Loop)**: 🔁 The agent iterates through each chunk of text.  
-    a.  **Translate**: The current chunk is sent to the LLM for translation, along with the translation memory for context.  
-    b.  **Validate**: The LLM's output is checked for correctness. Specifically, it ensures the output is plain text and not wrapped in markdown code blocks. If validation fails, the agent retries the translation up to a defined maximum.  
-    c.  **Aggregate**: The validated, translated text is added to a list. If a chunk repeatedly fails validation, the original text is used as a placeholder to prevent data loss.  
-8.  **Finalize Translation**: ✅ Once all chunks are translated, the agent reconstructs a complete, translated subtitle list, converts it back into the SRT format, and saves it to a new file (e.g., `transcripts/video_id_en_zh-CN.srt`).
-9.  **End**: 🎉 The process is complete.
+### 🌍 **Multi-language Support**
 
-## 🛠️ Quick Start
+- **Internationalized Interface**: 11 supported UI languages
+- **Automatic Language Detection**: Discovers all available subtitle languages
+- **Wide Translation Support**: Translate to any language supported by the AI models
+
+### 📁 **File Management**
+
+- **Automatic Organization**: Smart file naming and storage in dedicated folders
+- **SRT Format**: Industry-standard subtitle format for maximum compatibility
+- **One-click Download**: Easy access to translated subtitle files
+
+## 🛠️ Installation & Setup
+
+### Prerequisites
+
+- Python 3.9 or higher
+- OpenAI API key (required for AI translation)
+- Modern web browser (Chrome, Firefox, Safari, or Edge)
+
+### Quick Start
 
 **1. Clone the Repository**
 
@@ -65,84 +72,216 @@ git clone https://github.com/tigerkidyang/llm-youtube-sub-translation-agent.git
 cd llm-youtube-sub-translation-agent
 ```
 
-**2. Create a Python Virtual Environment**
-
-It's highly recommended to use a virtual environment.
+**2. Create Virtual Environment**
 
 ```bash
-# For Windows
+# Windows
 python -m venv venv
 venv\Scripts\activate
 
-# For macOS/Linux
+# macOS/Linux
 python3 -m venv venv
 source venv/bin/activate
 ```
 
 **3. Install Dependencies**
 
-Install all the required Python packages from `requirements.txt`.
-
 ```bash
 pip install -r requirements.txt
 ```
 
-**4. Configure Environment Variables**
+**4. Configure Environment**
 
-The agent requires an API key and other configurations.
-
-First, rename the example environment file `.env.example` to `.env`.
-
-```bash
-# For Windows
-rename .env.example .env
-
-# For macOS/Linux
-mv .env.example .env
-```
-
-Next, open the new `.env` file and add your OpenAI API key. The file will also contain optional default values you can customize.
+Create a `.env` file in the project root with your OpenAI API key:
 
 ```env
 # Required
-OPENAI_API_KEY="your_openai_api_key_here"
+OPENAI_API_KEY=your_openai_api_key_here
 
-# Optional: You can override these default values
-# I have comments in .env.example to tell you what they are.
-TRANSCRIPT_OUTPUT_DIR="transcripts"
-AGENT_CHUNK_SIZE="50"
-AGENT_MAX_TRANSLATION_RETRIES="2"
-YOUTUBE_API_MAX_RETRIES="20"
-YOUTUBE_API_RETRY_DELAY_SECONDS="3"
-EXTRACTION_MODEL="o3-mini"
-TRANSLATION_MODEL="o3-mini"
+# Optional configurations (with defaults shown)
+TRANSCRIPT_OUTPUT_DIR=transcripts
+AGENT_CHUNK_SIZE=50
+AGENT_MAX_TRANSLATION_RETRIES=2
+YOUTUBE_API_MAX_RETRIES=1
+YOUTUBE_API_RETRY_DELAY_SECONDS=3
+EXTRACTION_MODEL=gpt-4.1
+TRANSLATION_MODEL=gpt-4.1
+CONTEXT_MODEL=o3-mini
 ```
 
-## 🏃 How to Run
-
-Execute the `Agent.py` script from your terminal. The agent will guide you through the process interactively.
+**5. Launch the Application**
 
 ```bash
-python Agent.py
+python run_streamlit.py
 ```
 
-You will be prompted to enter the YouTube video link and then select the languages. The agent will display detailed logs in the console as it executes each step of the workflow. Once finished, you will find the original and translated `.srt` files in the `transcripts` directory.
+The application will automatically open in your default browser at `http://localhost:8501`.
 
----
+## 🎯 How to Use
+
+### Basic Workflow
+
+1. **Start the Application**: Run `python run_streamlit.py`
+2. **Enter Video URL**: Paste any YouTube video link
+3. **Select Languages**: Choose source and target languages from detected options
+4. **Configure Models** (Optional): Select AI models for different processing stages
+5. **Start Translation**: Click "Start AI Translation" and monitor progress
+6. **Watch & Download**: Enjoy the translated video with synchronized subtitles and download files
+
+### Advanced Features
+
+#### Model Selection
+
+- **Extraction Model**: Handles subtitle downloading and preprocessing
+- **Context Model**: Generates translation memory and guidelines
+- **Translation Model**: Performs the actual translation work
+
+#### Caching System
+
+- Automatically detects existing translations
+- Instant loading for previously translated videos
+- Smart cache invalidation and management
+
+#### Multi-language Interface
+
+- Switch between 11 supported interface languages
+- Persistent language preferences
+- Localized error messages and help text
+
+## 🏗️ Architecture Overview
+
+### Core Components
+
+- **`streamlit_app.py`**: Main web interface and user interaction logic
+- **`Agent.py`**: LangGraph-based translation workflow engine
+- **`get_sub.py`**: Subtitle extraction with dual-source fallback
+- **`prompts.py`**: Carefully crafted AI prompts for optimal translation
+- **`languages.py`**: Complete internationalization support
+- **`run_streamlit.py`**: Application launcher with dependency checking
+
+### Translation Workflow
+
+1. **URL Processing**: Extract video ID and validate accessibility
+2. **Language Discovery**: Detect all available subtitle languages
+3. **Cache Check**: Look for existing translations to avoid duplicate work
+4. **Subtitle Extraction**: Download original subtitles with fallback mechanisms
+5. **Context Generation**: Create comprehensive translation memory
+6. **Chunked Translation**: Process subtitles in optimized segments
+7. **Quality Validation**: Verify translation format and retry if needed
+8. **Output Generation**: Create final SRT file and display results
+
+### Technology Stack
+
+- **Frontend**: Streamlit (Interactive web interface)
+- **AI Framework**: LangGraph (Workflow orchestration)
+- **AI Models**: OpenAI GPT models (Configurable)
+- **Subtitle APIs**: youtube-transcript-api + yt-dlp (Dual fallback)
+- **File Processing**: Python standard library + custom parsers
+
+## ⚙️ Configuration
+
+### Environment Variables
+
+| Variable                        | Description                      | Default       |
+| ------------------------------- | -------------------------------- | ------------- |
+| `OPENAI_API_KEY`                | OpenAI API key (required)        | -             |
+| `TRANSCRIPT_OUTPUT_DIR`         | Directory for subtitle files     | `transcripts` |
+| `AGENT_CHUNK_SIZE`              | Subtitle processing chunk size   | `50`          |
+| `AGENT_MAX_TRANSLATION_RETRIES` | Maximum retry attempts           | `2`           |
+| `EXTRACTION_MODEL`              | AI model for subtitle extraction | `gpt-4.1`     |
+| `TRANSLATION_MODEL`             | AI model for translation         | `gpt-4.1`     |
+| `CONTEXT_MODEL`                 | AI model for context generation  | `o3-mini`     |
+
+## 🔧 Troubleshooting
+
+### Common Issues
+
+**Application won't start**
+
+- Verify Python version (3.9+)
+- Check all dependencies are installed
+- Ensure OpenAI API key is configured
+
+**Translation fails**
+
+- Verify OpenAI API key is valid and has credits
+- Check internet connection
+- Try different AI models if rate-limited
+
+**Subtitles not found**
+
+- Verify the video has available subtitles
+- Try different language options
+- Check if video is publicly accessible
+
+**Interface language issues**
+
+- Clear browser cache and refresh
+- Check browser language settings
+- Try selecting language manually from dropdown
+
+### Performance Optimization
+
+- Use faster AI models for large videos
+- Enable caching for frequently translated content
+- Close other applications to free up system resources
+- Use wired internet connection for stability
 
 ## 🤝 Contributing
 
-Contributions are welcome! If you have ideas for improvements or find any issues, please feel free to:
+We welcome contributions! Here's how to get started:
 
-1.  Fork the repository.
-2.  Create a new branch (`git checkout -b feature/your-feature-name`).
-3.  Make your changes.
-4.  Commit your changes (`git commit -m 'Add some feature'`).
-5.  Push to the branch (`git push origin feature/your-feature-name`).
-6.  Open a Pull Request.
+1. **Fork the Repository**: Click the "Fork" button on GitHub
+2. **Create Feature Branch**: `git checkout -b feature/your-feature-name`
+3. **Make Changes**: Implement your improvements
+4. **Test Thoroughly**: Verify all functionality works
+5. **Submit Pull Request**: Create a detailed PR with description
 
-Please make sure to update tests as appropriate.
+### Development Guidelines
+
+- Follow Python PEP 8 style guidelines
+- Add comprehensive docstrings to new functions
+- Update documentation for new features
+- Test with various video types and languages
+- Maintain backward compatibility when possible
+
+### Areas for Contribution
+
+- Additional subtitle format support (VTT, ASS, etc.)
+- New AI model integrations
+- Performance optimizations
+- Additional language support
+- UI/UX improvements
+- Mobile responsiveness enhancements
+
+## 📊 Project Statistics
+
+- **Lines of Code**: ~3,200
+- **Supported UI Languages**: 11
+- **AI Models Supported**: 5+
+- **Subtitle Formats**: SRT (with more planned)
+- **Fallback Systems**: 2 (youtube-transcript-api + yt-dlp)
 
 ## 📄 License
 
-This project is licensed under the MIT License. You can find more details in the `LICENSE` file if one is included in the repository, or refer to the [MIT License terms](https://opensource.org/licenses/MIT).
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- **OpenAI**: For providing powerful language models
+- **Streamlit**: For the excellent web application framework
+- **LangGraph**: For robust workflow orchestration
+- **YouTube Transcript API**: For subtitle access
+- **yt-dlp**: For reliable video data extraction
+- **Open Source Community**: For continuous inspiration and support
+
+---
+
+<div align="center">
+  <p>Made with ❤️ for the global community</p>
+  <p>
+    <a href="https://github.com/tigerkidyang/llm-youtube-sub-translation-agent">⭐ Star this project</a> •
+    <a href="https://github.com/tigerkidyang/llm-youtube-sub-translation-agent/issues">🐛 Report Bug</a> •
+    <a href="https://github.com/tigerkidyang/llm-youtube-sub-translation-agent/issues">💡 Request Feature</a>
+  </p>
+</div>

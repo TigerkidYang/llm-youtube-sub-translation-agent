@@ -1,62 +1,69 @@
 <div align="center">
-  <h1>🎬 LLM YouTube 字幕翻訳エージェント 🌍</h1>
+  <h1>🎬 YouTube字幕AI翻訳ツール 🌍</h1>
   <p>
-    LangGraph を使用した、高品質でコンテキストを意識した YouTube 動画字幕の高度な AI 翻訳エージェントです。
+    リアルタイム動画プレーヤー統合による高品質でコンテキスト対応のYouTube動画字幕翻訳のための先進的なAI駆動Webアプリケーション。
   </p>
   <p>
-    <!-- Badges -->
+    <!-- バッジ -->
     <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.9%2B-blue.svg" alt="Python 3.9+"></a>
-    <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
+    <a href="https://streamlit.io/"><img src="https://img.shields.io/badge/Streamlit-1.46%2B-FF6B6B.svg" alt="Streamlit 1.46+"></a>
+    <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="ライセンス: MIT"></a>
     <a href="https://github.com/tigerkidyang/llm-youtube-sub-translation-agent/issues"><img src="https://img.shields.io/github/issues/tigerkidyang/llm-youtube-sub-translation-agent" alt="Issues"></a>
-    <a href="https://github.com/tigerkidyang/llm-youtube-sub-translation-agent/pulls"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg" alt="PRs Welcome"></a>
+    <a href="https://github.com/tigerkidyang/llm-youtube-sub-translation-agent/pulls"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg" alt="PRs歓迎"></a>
     <a href="https://github.com/tigerkidyang/llm-youtube-sub-translation-agent/stargazers"><img src="https://img.shields.io/github/stars/tigerkidyang/llm-youtube-sub-translation-agent?style=social" alt="GitHub Stars"></a>
   </p>
   <p>
-    🌐 他の言語でこの README を読む:
-    <a href="README.md">English</a> | <a href="README_zh.md">简体中文</a> | <a href="README_zh_TW.md">繁體中文</a> | 日本語 | <a href="README_ko.md">한국어</a> | <a href="README_fr.md">Français</a> | <a href="README_de.md">Deutsch</a> | <a href="README_es.md">Español</a> | <a href="README_pt.md">Português</a> | <a href="README_it.md">Italiano</a> | <a href="README_ru.md">Русский</a>
+    🌐 他の言語のREADMEを読む：
+    <a href="README.md">English</a> | <a href="README_zh.md">简体中文</a> | <a href="README_zh_TW.md">繁體中文</a> | <a href="README_ko.md">한국어</a> | <a href="README_fr.md">Français</a> | <a href="README_de.md">Deutsch</a> | <a href="README_es.md">Español</a> | <a href="README_pt.md">Português</a> | <a href="README_it.md">Italiano</a> | <a href="README_ru.md">Русский</a>
   </p>
 </div>
 
-このプロジェクトは、YouTube 動画字幕の翻訳を自動化する高度なマルチステップ AI エージェントを実装しています。LangGraph フレームワークを使用して、単純な翻訳を超えて文脈上の一貫性と高品質を保証する堅牢でインテリジェントなパイプラインを作成します。
+このプロジェクトは、先進的な AI 技術を使用して YouTube 動画字幕を翻訳する洗練された Web ベースアプリケーションを提供します。Streamlit で構築され、LangGraph によって駆動され、リアルタイム動画再生、同期字幕表示、最適なパフォーマンスのためのインテリジェントキャッシングを備えた直感的なインターフェースを提供します。
 
-エージェントはまず字幕を取得し、全文を分析して「翻訳メモリ」（用語集とスタイルガイドを含む）を生成し、次にコンテンツをチャンクごとに翻訳し、各出力を検証してから結果を新しい `.srt` ファイルに最終化します。
+## 🌟 主要機能
 
-## 📖 目次
+### 🎥 **インタラクティブな動画体験**
 
-- [✨ 主な機能](#-主な機能)
-- [🚀 仕組み：エージェントのワークフロー](#-仕組みエージェントのワークフロー)
-- [🛠️ セットアップとインストール](#️-セットアップとインストール)
-- [🏃 実行方法](#-実行方法)
-- [🤝 貢献](#-貢献)
-- [📄 ライセンス](#-ライセンス)
+- **埋め込み YouTube プレーヤー**：同期字幕付きの動画をアプリ内で直接視聴
+- **字幕オーバーレイ制御**：ワンクリックで動画オーバーレイ字幕のオン/オフを切り替え
+- **リアルタイム同期**：字幕が動画再生と自動的に同期
+- **フルスクリーン対応**：すべての画面サイズに最適化されたプレーヤー体験
 
-## ✨ 主な機能
+### 🧠 **AI 駆動翻訳**
 
--   **インタラクティブなセットアップ**：🗣️ YouTube 動画のリンクと希望の原文/翻訳言語をユーザーに促します。
--   **コンテキストを意識した翻訳**：🧠 翻訳前に、エージェントは包括的なコンテキストガイド（動画の基本情報、用語集、声の説明、スタイルに関するヒント）を生成し、高品質で一貫性のある翻訳を保証します。
--   **チャンクベースの処理**：🧩 字幕を管理しやすいチャンクに分割し、言語モデルによる効率的で信頼性の高い処理を実現します。
--   **堅牢で自己修正機能**：💪 LLM の翻訳出力のフォーマットエラー（不要なマークダウンなど）をチェックし、修正指示を付けて自動的に再試行する検証ステップが含まれています。
--   **ステートフルなワークフロー**：🔄 `langgraph` で構築され、複雑なマルチステッププロセスを明確で、回復力があり、観察可能な方法で管理します。
--   **自動ファイル管理**：📂 元の `.srt` ファイルと最終的な翻訳済み `.srt` ファイルの両方を、専用の `transcripts` ディレクトリにインテリジェントに命名して保存します。
+- **コンテキスト対応処理**：用語集、話者分析、スタイルガイドラインを含む包括的な翻訳メモリを生成
+- **チャンク化翻訳**：精度確保のため字幕を管理可能なセグメントにインテリジェントに分割
+- **品質検証**：信頼性のある出力を保証する自動フォーマットチェックと再試行メカニズム
+- **複数 AI モデル**：抽出、コンテキスト生成、翻訳のための設定可能なモデル
 
-## 🚀 仕組み：エージェントのワークフロー
+### 🚀 **パフォーマンスと信頼性**
 
-エージェントはステートマシンとして動作し、定義された一連のステップを経て翻訳タスクを完了します。
+- **スマートキャッシング**：既存の翻訳を自動検出し再利用
+- **デュアル抽出方法**：主要な youtube-transcript-api と yt-dlp フォールバック
+- **進捗追跡**：詳細なステータス更新を伴うリアルタイム翻訳進捗
+- **エラー回復**：堅牢なエラーハンドリングと優雅なフォールバック
 
-1.  **動画リンクの取得**：🔗 エージェントは、ユーザーに YouTube 動画の URL を尋ねることから始まります。
-2.  **利用可能な言語のリスト表示**：📜 YouTube Transcript API を呼び出して、動画で利用可能なすべての字幕言語を検索し、表示します。
-3.  **言語の選択**：🎯 ユーザーは翻訳元の字幕言語を選択し、翻訳先の言語を指定します。
-4.  **字幕の取得**：📥 LLM を活用したツールエージェントが呼び出されます。`fetch_youtube_srt` ツールを正しく呼び出して元の字幕をダウンロードし、`.srt` ファイル（例：`transcripts/video_id_en.srt`）として保存します。
-5.  **翻訳の準備**：⚙️ ダウンロードした `.srt` ファイルを解析し、その内容を `CHUNK_SIZE` に基づいて、番号付きの小さなテキストチャンクに分割します。
-6.  **翻訳コンテキストの生成**：💡 エージェントは、*全体*の元の字幕テキストを LLM に送信して「翻訳メモリ」を生成します。この重要なドキュメントには、主要な用語の用語集、話者の声とトーンの説明、一貫性を確保するための翻訳のヒントが含まれています。
-7.  **チャンクの翻訳（ループ）**：🔁 エージェントは各テキストチャンクを反復処理します。  
-    a.  **翻訳**：現在のチャンクは、コンテキスト用の翻訳メモリとともに翻訳のために LLM に送信されます。  
-    b.  **検証**：LLM の出力の正しさがチェックされます。具体的には、出力がプレーンテキストであり、マークダウンコードブロックで囲まれていないことを確認します。検証に失敗した場合、エージェントは定義された最大回数まで翻訳を再試行します。  
-    c.  **集約**：検証済みの翻訳済みテキストがリストに追加されます。チャンクが繰り返し検証に失敗した場合、データ損失を防ぐために元のテキストがプレースホルダーとして使用されます。  
-8.  **翻訳の最終化**：✅ すべてのチャンクが翻訳されると、エージェントは完全な翻訳済み字幕リストを再構築し、SRT 形式に戻して新しいファイル（例：`transcripts/video_id_en_ja.srt`）に保存します。
-9.  **終了**：🎉 プロセス完了です。
+### 🌍 **多言語サポート**
 
-## 🛠️ クイックスタート
+- **国際化インターフェース**：11 の UI サポート言語
+- **自動言語検出**：利用可能なすべての字幕言語を発見
+- **幅広い翻訳サポート**：AI モデルがサポートする任意の言語への翻訳
+
+### 📁 **ファイル管理**
+
+- **自動整理**：スマートファイル命名と専用フォルダ保存
+- **SRT フォーマット**：最大互換性のための業界標準字幕フォーマット
+- **ワンクリックダウンロード**：翻訳字幕ファイルへの簡単アクセス
+
+## 🛠️ インストールとセットアップ
+
+### 前提条件
+
+- Python 3.9 以上
+- OpenAI API キー（AI 翻訳に必要）
+- モダン Web ブラウザ（Chrome、Firefox、Safari、Edge）
+
+### クイックスタート
 
 **1. リポジトリのクローン**
 
@@ -65,84 +72,139 @@ git clone https://github.com/tigerkidyang/llm-youtube-sub-translation-agent.git
 cd llm-youtube-sub-translation-agent
 ```
 
-**2. Python 仮想環境の作成**
-
-仮想環境の使用を強くお勧めします。
+**2. 仮想環境の作成**
 
 ```bash
-# Windows の場合
+# Windows
 python -m venv venv
 venv\Scripts\activate
 
-# macOS/Linux の場合
+# macOS/Linux
 python3 -m venv venv
 source venv/bin/activate
 ```
 
 **3. 依存関係のインストール**
 
-`requirements.txt` から必要なすべての Python パッケージをインストールします。
-
 ```bash
 pip install -r requirements.txt
 ```
 
-**4. 環境変数の設定**
+**4. 環境設定**
 
-エージェントには API キーとその他の設定が必要です。
-
-まず、サンプル環境ファイル `.env.example` を `.env` に名前変更します。
-
-```bash
-# Windows の場合
-rename .env.example .env
-
-# macOS/Linux の場合
-mv .env.example .env
-```
-
-次に、新しい `.env` ファイルを開き、OpenAI API キーを追加します。このファイルには、カスタマイズ可能なオプションのデフォルト値も含まれています。
+プロジェクトルートに`.env`ファイルを作成し、OpenAI API キーを追加：
 
 ```env
 # 必須
-OPENAI_API_KEY="your_openai_api_key_here"
+OPENAI_API_KEY=あなたのopenai_apiキー
 
-# オプション：これらのデフォルト値は上書きできます
-# それらが何であるかについては、.env.example にコメントがあります。
-TRANSCRIPT_OUTPUT_DIR="transcripts"
-AGENT_CHUNK_SIZE="50"
-AGENT_MAX_TRANSLATION_RETRIES="2"
-YOUTUBE_API_MAX_RETRIES="20"
-YOUTUBE_API_RETRY_DELAY_SECONDS="3"
-EXTRACTION_MODEL="o3-mini"
-TRANSLATION_MODEL="o3-mini"
+# オプション設定（デフォルト値を表示）
+TRANSCRIPT_OUTPUT_DIR=transcripts
+AGENT_CHUNK_SIZE=50
+AGENT_MAX_TRANSLATION_RETRIES=2
+YOUTUBE_API_MAX_RETRIES=1
+YOUTUBE_API_RETRY_DELAY_SECONDS=3
+EXTRACTION_MODEL=gpt-4.1
+TRANSLATION_MODEL=gpt-4.1
+CONTEXT_MODEL=o3-mini
 ```
 
-## 🏃 実行方法
-
-ターミナルから `Agent.py` スクリプトを実行します。エージェントがインタラクティブにプロセスを案内します。
+**5. アプリケーションの起動**
 
 ```bash
-python Agent.py
+python run_streamlit.py
 ```
 
-YouTube 動画のリンクを入力し、次に言語を選択するよう求められます。エージェントは、ワークフローの各ステップを実行する際に、コンソールに詳細なログを表示します。終了すると、`transcripts` ディレクトリに元の `.srt` ファイルと翻訳済みの `.srt` ファイルが見つかります。
+アプリケーションは`http://localhost:8501`でデフォルトブラウザに自動的に開きます。
 
----
+## 🎯 使用方法
+
+### 基本ワークフロー
+
+1. **アプリケーション起動**：`python run_streamlit.py`を実行
+2. **動画 URL 入力**：任意の YouTube 動画リンクを貼り付け
+3. **言語選択**：検出されたオプションからソース言語とターゲット言語を選択
+4. **モデル設定**（オプション）：異なる処理段階で AI モデルを選択
+5. **翻訳開始**：「AI 翻訳開始」をクリックして進捗を監視
+6. **視聴とダウンロード**：同期字幕付きの翻訳動画を楽しみ、ファイルをダウンロード
+
+### 高度な機能
+
+#### モデル選択
+
+- **抽出モデル**：字幕ダウンロードと前処理を処理
+- **コンテキストモデル**：翻訳メモリとガイドラインを生成
+- **翻訳モデル**：実際の翻訳作業を実行
+
+#### キャッシングシステム
+
+- 既存翻訳の自動検出
+- 以前翻訳した動画の即座読み込み
+- スマートキャッシュ無効化と管理
+
+#### 多言語インターフェース
+
+- 11 のサポートされるインターフェース言語間での切り替え
+- 永続的な言語設定
+- ローカライズされたエラーメッセージとヘルプテキスト
+
+## 🏗️ アーキテクチャ概要
+
+### コアコンポーネント
+
+- **`streamlit_app.py`**：メイン Web インターフェースとユーザーインタラクションロジック
+- **`Agent.py`**：LangGraph ベースの翻訳ワークフローエンジン
+- **`get_sub.py`**：デュアルソースフォールバック付き字幕抽出
+- **`prompts.py`**：最適な翻訳のために精巧に作られた AI プロンプト
+- **`languages.py`**：完全な国際化サポート
+- **`run_streamlit.py`**：依存関係チェック付きアプリケーションランチャー
+
+### 翻訳ワークフロー
+
+1. **URL 処理**：動画 ID を抽出しアクセス可能性を検証
+2. **言語発見**：利用可能なすべての字幕言語を検出
+3. **キャッシュチェック**：重複作業を避けるため既存翻訳を検索
+4. **字幕抽出**：フォールバックメカニズムで元字幕をダウンロード
+5. **コンテキスト生成**：包括的な翻訳メモリを作成
+6. **チャンク化翻訳**：最適化されたセグメントで字幕を処理
+7. **品質検証**：翻訳フォーマットを検証し必要に応じて再試行
+8. **出力生成**：最終 SRT ファイルを作成し結果を表示
+
+## ⚙️ 設定
+
+### 環境変数
+
+| 変数                            | 説明                       | デフォルト    |
+| ------------------------------- | -------------------------- | ------------- |
+| `OPENAI_API_KEY`                | OpenAI API キー（必須）    | -             |
+| `TRANSCRIPT_OUTPUT_DIR`         | 字幕ファイルディレクトリ   | `transcripts` |
+| `AGENT_CHUNK_SIZE`              | 字幕処理チャンクサイズ     | `50`          |
+| `AGENT_MAX_TRANSLATION_RETRIES` | 最大再試行回数             | `2`           |
+| `EXTRACTION_MODEL`              | 字幕抽出 AI モデル         | `gpt-4.1`     |
+| `TRANSLATION_MODEL`             | 翻訳 AI モデル             | `gpt-4.1`     |
+| `CONTEXT_MODEL`                 | コンテキスト生成 AI モデル | `o3-mini`     |
 
 ## 🤝 貢献
 
-貢献を歓迎します！改善のためのアイデアがある場合や問題を見つけた場合は、お気軽に次の手順を実行してください：
+貢献を歓迎します！始め方は以下の通りです：
 
-1.  リポジトリをフォークします。
-2.  新しいブランチを作成します（`git checkout -b feature/your-feature-name`）。
-3.  変更を加えます。
-4.  変更をコミットします（`git commit -m 'Add some feature'`）。
-5.  ブランチにプッシュします（`git push origin feature/your-feature-name`）。
-6.  プルリクエストを開きます。
-
-必要に応じてテストを更新してください。
+1. **リポジトリをフォーク**：GitHub の「Fork」ボタンをクリック
+2. **機能ブランチ作成**：`git checkout -b feature/your-feature-name`
+3. **変更実装**：改善を実装
+4. **徹底的テスト**：すべての機能が正常に動作することを確認
+5. **プルリクエスト提出**：説明付きの詳細な PR を作成
 
 ## 📄 ライセンス
 
-このプロジェクトは MIT ライセンスの下でライセンスされています。リポジトリに `LICENSE` ファイルが含まれている場合は詳細を確認できます。または、[MIT ライセンス条項](https://opensource.org/licenses/MIT)を参照してください。
+このプロジェクトは MIT ライセンスの下でライセンスされています。詳細は[LICENSE](LICENSE)ファイルをご覧ください。
+
+---
+
+<div align="center">
+  <p>グローバルコミュニティのために❤️で作成</p>
+  <p>
+    <a href="https://github.com/tigerkidyang/llm-youtube-sub-translation-agent">⭐ プロジェクトにスター</a> •
+    <a href="https://github.com/tigerkidyang/llm-youtube-sub-translation-agent/issues">🐛 バグ報告</a> •
+    <a href="https://github.com/tigerkidyang/llm-youtube-sub-translation-agent/issues">💡 機能リクエスト</a>
+  </p>
+</div>

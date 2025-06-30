@@ -1,62 +1,69 @@
 <div align="center">
-  <h1>🎬 Agente de Traducción de Subtítulos de YouTube LLM 🌍</h1>
+  <h1>🎬 Traductor IA de Subtítulos de YouTube 🌍</h1>
   <p>
-    Un agente de IA avanzado para la traducción de alta calidad y consciente del contexto de los subtítulos de videos de YouTube, utilizando LangGraph.
+    Una aplicación web avanzada impulsada por IA para traducción de alta calidad y consciente del contexto de subtítulos de videos de YouTube con integración de reproductor de video en tiempo real.
   </p>
   <p>
     <!-- Insignias -->
     <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.9%2B-blue.svg" alt="Python 3.9+"></a>
+    <a href="https://streamlit.io/"><img src="https://img.shields.io/badge/Streamlit-1.46%2B-FF6B6B.svg" alt="Streamlit 1.46+"></a>
     <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="Licencia: MIT"></a>
-    <a href="https://github.com/tigerkidyang/llm-youtube-sub-translation-agent/issues"><img src="https://img.shields.io/github/issues/tigerkidyang/llm-youtube-sub-translation-agent" alt="Problemas"></a>
+    <a href="https://github.com/tigerkidyang/llm-youtube-sub-translation-agent/issues"><img src="https://img.shields.io/github/issues/tigerkidyang/llm-youtube-sub-translation-agent" alt="Issues"></a>
     <a href="https://github.com/tigerkidyang/llm-youtube-sub-translation-agent/pulls"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg" alt="PRs Bienvenidos"></a>
-    <a href="https://github.com/tigerkidyang/llm-youtube-sub-translation-agent/stargazers"><img src="https://img.shields.io/github/stars/tigerkidyang/llm-youtube-sub-translation-agent?style=social" alt="Estrellas de GitHub"></a>
+    <a href="https://github.com/tigerkidyang/llm-youtube-sub-translation-agent/stargazers"><img src="https://img.shields.io/github/stars/tigerkidyang/llm-youtube-sub-translation-agent?style=social" alt="GitHub Stars"></a>
   </p>
   <p>
-    🌐 Lea este README en otros idiomas:
-    <a href="README.md">English</a> | <a href="README_zh.md">简体中文</a> | <a href="README_zh_TW.md">繁體中文</a> | <a href="README_ja.md">日本語</a> | <a href="README_ko.md">한국어</a> | <a href="README_fr.md">Français</a> | <a href="README_de.md">Deutsch</a> | Español | <a href="README_pt.md">Português</a> | <a href="README_it.md">Italiano</a> | <a href="README_ru.md">Русский</a>
+    🌐 Leer este README en otros idiomas:
+    <a href="README.md">English</a> | <a href="README_zh.md">简体中文</a> | <a href="README_zh_TW.md">繁體中文</a> | <a href="README_ja.md">日本語</a> | <a href="README_ko.md">한국어</a> | <a href="README_fr.md">Français</a> | <a href="README_de.md">Deutsch</a> | <a href="README_pt.md">Português</a> | <a href="README_it.md">Italiano</a> | <a href="README_ru.md">Русский</a>
   </p>
 </div>
 
-Este proyecto implementa un agente de IA avanzado de múltiples pasos que automatiza la traducción de subtítulos de videos de YouTube. Utiliza el marco LangGraph para crear una canalización robusta e inteligente que va más allá de la simple traducción para garantizar la coherencia contextual y la alta calidad.
+Este proyecto proporciona una aplicación web sofisticada para traducir subtítulos de videos de YouTube utilizando tecnología de IA avanzada. Construido con Streamlit y potenciado por LangGraph, ofrece una interfaz intuitiva con reproducción de video en tiempo real, visualización de subtítulos sincronizados y caché inteligente para rendimiento óptimo.
 
-El agente primero recupera los subtítulos, analiza el texto completo para generar una "memoria de traducción" (que incluye un glosario y una guía de estilo), y luego traduce el contenido fragmento por fragmento, validando cada salida antes de finalizar el resultado en un nuevo archivo `.srt`.
+## 🌟 Características Principales
 
-## 📖 Tabla de Contenidos
+### 🎥 **Experiencia de Video Interactiva**
 
-- [✨ Características Clave](#-características-clave)
-- [🚀 Cómo Funciona: El Flujo de Trabajo del Agente](#-cómo-funciona-el-flujo-de-trabajo-del-agente)
-- [🛠️ Configuración e Instalación](#️-configuración-e-instalación)
-- [🏃 Cómo Ejecutar](#-cómo-ejecutar)
-- [🤝 Contribuir](#-contribuir)
-- [📄 Licencia](#-licencia)
+- **Reproductor de YouTube Integrado**: Ver videos directamente en la app con subtítulos sincronizados
+- **Control de Superposición de Subtítulos**: Alternar subtítulos de superposición de video on/off con un clic
+- **Sincronización en Tiempo Real**: Los subtítulos se sincronizan automáticamente con la reproducción del video
+- **Soporte de Pantalla Completa**: Experiencia de reproductor optimizada para todos los tamaños de pantalla
 
-## ✨ Características Clave
+### 🧠 **Traducción Impulsada por IA**
 
--   **Configuración Interactiva**: 🗣️ Solicita al usuario el enlace del video de YouTube y los idiomas de origen/destino deseados.
--   **Traducción Consciente del Contexto**: 🧠 Antes de traducir, el agente genera una guía de contexto completa (base del video, glosario, descripciones de voz y consejos de estilo) para garantizar traducciones consistentes y de alta calidad.
--   **Procesamiento Basado en Fragmentos**: 🧩 Divide los subtítulos en fragmentos manejables para un procesamiento eficiente y confiable por parte del modelo de lenguaje.
--   **Robusto y Autocorregible**: 💪 Incluye un paso de validación que verifica la salida traducida del LLM en busca de errores de formato (como markdown no deseado) y reintenta automáticamente con instrucciones correctivas.
--   **Flujo de Trabajo con Estado**: 🔄 Construido con `langgraph` para gestionar el complejo proceso de múltiples pasos de una manera clara, resiliente y observable.
--   **Gestión Automática de Archivos**: 📂 Nombra y guarda de forma inteligente tanto los archivos `.srt` originales como los finales traducidos en un directorio `transcripts` dedicado.
+- **Procesamiento Consciente del Contexto**: Genera memoria de traducción comprensiva incluyendo glosario, análisis de hablantes y directrices de estilo
+- **Traducción Basada en Chunks**: Divide inteligentemente los subtítulos en segmentos manejables para precisión
+- **Validación de Calidad**: Verificación automática de formato y mecanismos de reintento para salida confiable
+- **Múltiples Modelos de IA**: Modelos configurables para extracción, generación de contexto y traducción
 
-## 🚀 Cómo Funciona: El Flujo de Trabajo del Agente
+### 🚀 **Rendimiento y Confiabilidad**
 
-El agente opera como una máquina de estados, moviéndose a través de una serie de pasos definidos para completar la tarea de traducción.
+- **Caché Inteligente**: Detecta y reutiliza automáticamente traducciones existentes
+- **Métodos de Extracción Duales**: youtube-transcript-api principal con respaldo yt-dlp
+- **Seguimiento de Progreso**: Progreso de traducción en tiempo real con actualizaciones detalladas de estado
+- **Recuperación de Errores**: Manejo robusto de errores con respaldos elegantes
 
-1.  **Obtener Enlace del Video**: 🔗 El agente comienza pidiendo al usuario una URL de video de YouTube.
-2.  **Listar Idiomas Disponibles**: 📜 Llama a la API de YouTube Transcript para encontrar todos los idiomas de subtítulos disponibles para el video y los muestra.
-3.  **Obtener Elecciones de Idioma**: 🎯 El usuario selecciona el idioma original de los subtítulos para traducir y especifica el idioma de destino.
-4.  **Recuperar Subtítulos**: 📥 Se invoca un agente de herramientas impulsado por LLM. Llama correctamente a la herramienta `fetch_youtube_srt` para descargar los subtítulos originales y los guarda como un archivo `.srt` (por ejemplo, `transcripts/video_id_en.srt`).
-5.  **Preparar para la Traducción**: ⚙️ El archivo `.srt` descargado se analiza y su contenido se divide en fragmentos de texto más pequeños y numerados según el `CHUNK_SIZE`.
-6.  **Generar Contexto de Traducción**: 💡 El agente envía el texto *completo* de los subtítulos originales a un LLM para generar una "memoria de traducción". Este documento crítico contiene un glosario de términos clave, descripciones de las voces y tonos de los hablantes, y consejos de traducción para garantizar la coherencia.
-7.  **Traducir Fragmentos (Bucle)**: 🔁 El agente itera a través de cada fragmento de texto.  
-    a.  **Traducir**: El fragmento actual se envía al LLM para la traducción, junto con la memoria de traducción para el contexto. 
-    b.  **Validar**: Se comprueba la corrección de la salida del LLM. Específicamente, se asegura de que la salida sea texto sin formato y no esté envuelta en bloques de código markdown. Si la validación falla, el agente reintenta la traducción hasta un máximo definido.  
-    c.  **Agregar**: El texto traducido y validado se agrega a una lista. Si un fragmento falla repetidamente la validación, se utiliza el texto original como marcador de posición para evitar la pérdida de datos.  
-8.  **Finalizar Traducción**: ✅ Una vez que todos los fragmentos están traducidos, el agente reconstruye una lista completa de subtítulos traducidos, la convierte de nuevo al formato SRT y la guarda en un nuevo archivo (por ejemplo, `transcripts/video_id_en_es.srt`).
-9.  **Fin**: 🎉 El proceso está completo.
+### 🌍 **Soporte Multiidioma**
 
-## 🛠️ Inicio Rápido
+- **Interfaz Internacionalizada**: 11 idiomas de interfaz soportados
+- **Detección Automática de Idioma**: Descubre todos los idiomas de subtítulos disponibles
+- **Amplio Soporte de Traducción**: Traduce a cualquier idioma soportado por los modelos de IA
+
+### 📁 **Gestión de Archivos**
+
+- **Organización Automática**: Nomenclatura inteligente de archivos y almacenamiento en carpetas dedicadas
+- **Formato SRT**: Formato de subtítulos estándar de la industria para máxima compatibilidad
+- **Descarga con Un Clic**: Acceso fácil a archivos de subtítulos traducidos
+
+## 🛠️ Instalación y Configuración
+
+### Requisitos Previos
+
+- Python 3.9 o superior
+- Clave API de OpenAI (requerida para traducción de IA)
+- Navegador web moderno (Chrome, Firefox, Safari o Edge)
+
+### Inicio Rápido
 
 **1. Clonar el Repositorio**
 
@@ -65,84 +72,97 @@ git clone https://github.com/tigerkidyang/llm-youtube-sub-translation-agent.git
 cd llm-youtube-sub-translation-agent
 ```
 
-**2. Crear un Entorno Virtual de Python**
-
-Se recomienda encarecidamente utilizar un entorno virtual.
+**2. Crear Entorno Virtual**
 
 ```bash
-# Para Windows
+# Windows
 python -m venv venv
 venv\Scripts\activate
 
-# Para macOS/Linux
+# macOS/Linux
 python3 -m venv venv
 source venv/bin/activate
 ```
 
 **3. Instalar Dependencias**
 
-Instale todos los paquetes de Python necesarios desde `requirements.txt`.
-
 ```bash
 pip install -r requirements.txt
 ```
 
-**4. Configurar Variables de Entorno**
+**4. Configurar Entorno**
 
-El agente requiere una clave API y otras configuraciones.
-
-Primero, cambie el nombre del archivo de entorno de ejemplo `.env.example` a `.env`.
-
-```bash
-# Para Windows
-rename .env.example .env
-
-# Para macOS/Linux
-mv .env.example .env
-```
-
-A continuación, abra el nuevo archivo `.env` y agregue su clave API de OpenAI. El archivo también contendrá valores predeterminados opcionales que puede personalizar.
+Crear un archivo `.env` en la raíz del proyecto y agregar tu clave API de OpenAI:
 
 ```env
 # Requerido
-OPENAI_API_KEY="your_openai_api_key_here"
+OPENAI_API_KEY=tu_clave_api_openai
 
-# Opcional: Puede anular estos valores predeterminados
-# Tengo comentarios en .env.example para decirle cuáles son.
-TRANSCRIPT_OUTPUT_DIR="transcripts"
-AGENT_CHUNK_SIZE="50"
-AGENT_MAX_TRANSLATION_RETRIES="2"
-YOUTUBE_API_MAX_RETRIES="20"
-YOUTUBE_API_RETRY_DELAY_SECONDS="3"
-EXTRACTION_MODEL="o3-mini"
-TRANSLATION_MODEL="o3-mini"
+# Configuraciones opcionales (valores por defecto mostrados)
+TRANSCRIPT_OUTPUT_DIR=transcripts
+AGENT_CHUNK_SIZE=50
+AGENT_MAX_TRANSLATION_RETRIES=2
+YOUTUBE_API_MAX_RETRIES=1
+YOUTUBE_API_RETRY_DELAY_SECONDS=3
+EXTRACTION_MODEL=gpt-4.1
+TRANSLATION_MODEL=gpt-4.1
+CONTEXT_MODEL=o3-mini
 ```
 
-## 🏃 Cómo Ejecutar
-
-Ejecute el script `Agent.py` desde su terminal. El agente lo guiará a través del proceso de forma interactiva.
+**5. Ejecutar la Aplicación**
 
 ```bash
-python Agent.py
+python run_streamlit.py
 ```
 
-Se le pedirá que ingrese el enlace del video de YouTube y luego seleccione los idiomas. El agente mostrará registros detallados en la consola a medida que ejecuta cada paso del flujo de trabajo. Una vez finalizado, encontrará los archivos `.srt` originales y traducidos en el directorio `transcripts`.
+La aplicación se abrirá automáticamente en tu navegador predeterminado en `http://localhost:8501`.
 
----
+## 🎯 Uso
 
-## 🤝 Contribuir
+### Flujo de Trabajo Básico
 
-¡Las contribuciones son bienvenidas! Si tiene ideas para mejoras o encuentra algún problema, no dude en:
+1. **Iniciar la Aplicación**: Ejecutar `python run_streamlit.py`
+2. **Ingresar URL del Video**: Pegar cualquier enlace de video de YouTube
+3. **Seleccionar Idiomas**: Elegir idiomas fuente y destino de las opciones detectadas
+4. **Configurar Modelos** (Opcional): Seleccionar modelos de IA para diferentes etapas de procesamiento
+5. **Iniciar Traducción**: Hacer clic en "Iniciar Traducción IA" y monitorear el progreso
+6. **Ver y Descargar**: Disfrutar del video traducido con subtítulos sincronizados y descargar archivos
 
-1.  Hacer un fork del repositorio.
-2.  Crear una nueva rama (`git checkout -b feature/your-feature-name`).
-3.  Realizar sus cambios.
-4.  Confirmar sus cambios (`git commit -m 'Add some feature'`).
-5.  Empujar a la rama (`git push origin feature/your-feature-name`).
-6.  Abrir una Pull Request.
+## ⚙️ Configuración
 
-Asegúrese de actualizar las pruebas según corresponda.
+### Variables de Entorno
+
+| Variable                        | Descripción                                    | Por Defecto   |
+| ------------------------------- | ---------------------------------------------- | ------------- |
+| `OPENAI_API_KEY`                | Clave API de OpenAI (requerida)                | -             |
+| `TRANSCRIPT_OUTPUT_DIR`         | Directorio de archivos de subtítulos           | `transcripts` |
+| `AGENT_CHUNK_SIZE`              | Tamaño de chunk de procesamiento de subtítulos | `50`          |
+| `AGENT_MAX_TRANSLATION_RETRIES` | Máximo número de reintentos                    | `2`           |
+| `EXTRACTION_MODEL`              | Modelo de IA para extracción de subtítulos     | `gpt-4.1`     |
+| `TRANSLATION_MODEL`             | Modelo de IA para traducción                   | `gpt-4.1`     |
+| `CONTEXT_MODEL`                 | Modelo de IA para generación de contexto       | `o3-mini`     |
+
+## 🤝 Contribución
+
+¡Damos la bienvenida a las contribuciones! Aquí está cómo empezar:
+
+1. **Hacer Fork del Repositorio**: Hacer clic en el botón "Fork" en GitHub
+2. **Crear Rama de Característica**: `git checkout -b feature/your-feature-name`
+3. **Implementar Cambios**: Implementar tus mejoras
+4. **Probar Exhaustivamente**: Verificar que todas las funcionalidades funcionen correctamente
+5. **Enviar Pull Request**: Crear un PR detallado con descripción
 
 ## 📄 Licencia
 
-Este proyecto está licenciado bajo la Licencia MIT. Puede encontrar más detalles en el archivo `LICENSE` si se incluye en el repositorio, o consultar los [términos de la Licencia MIT](https://opensource.org/licenses/MIT).
+Este proyecto está licenciado bajo la Licencia MIT. Ver el archivo [LICENSE](LICENSE) para detalles.
+
+---
+
+<div align="center">
+  <p>Hecho con ❤️ para la comunidad global</p>
+  <p>
+    <a href="https://github.com/tigerkidyang/llm-youtube-sub-translation-agent">⭐ Dar estrella al proyecto</a> •
+    <a href="https://github.com/tigerkidyang/llm-youtube-sub-translation-agent/issues">🐛 Reportar Bug</a> •
+    <a href="https://github.com/tigerkidyang/llm-youtube-sub-translation-agent/issues">💡 Solicitar Característica</a>
+  </p>
+</div>
