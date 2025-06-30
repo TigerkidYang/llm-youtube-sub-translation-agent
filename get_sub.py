@@ -1,29 +1,56 @@
-from youtube_transcript_api import YouTubeTranscriptApi, NoTranscriptFound, TranscriptsDisabled
-import re
-import os
-import time # For implementing retry delays
-from langchain_core.tools import tool
-import logging
-import yt_dlp
-import json
-import tempfile
-from dotenv import load_dotenv
+"""
+YouTube Subtitle Extraction Module
 
+This module provides functionality for extracting subtitles from YouTube videos
+with robust fallback mechanisms using multiple APIs.
+
+Key Features:
+- Primary extraction via youtube-transcript-api
+- Fallback extraction via yt-dlp
+- Support for multiple subtitle formats (SRT, VTT)
+- Automatic format conversion
+- Comprehensive error handling and retry logic
+
+Dependencies:
+- youtube-transcript-api: Primary subtitle extraction
+- yt-dlp: Fallback subtitle extraction
+- langchain-core: Tool integration
+
+Author: YouTube Subtitle Translation Project
+License: MIT
+"""
+
+# Standard library imports
+import os
+import re
+import json
+import time
+import logging
+import tempfile
+
+# Third-party imports
+from dotenv import load_dotenv
+import yt_dlp
+from langchain_core.tools import tool
+from youtube_transcript_api import YouTubeTranscriptApi, NoTranscriptFound, TranscriptsDisabled
+
+# Load environment variables
 load_dotenv()
 
-# Configure logging
-# Using a distinct logger name for this module can be helpful for filtering logs.
+# Configure module-specific logging
 logger = logging.getLogger(__name__)
-
-# Retry parameters
-MAX_RETRIES = int(os.environ.get("YOUTUBE_API_MAX_RETRIES", "1"))
-RETRY_DELAY_SECONDS = int(os.environ.get("YOUTUBE_API_RETRY_DELAY_SECONDS", "3"))
-if not logger.hasHandlers(): # Avoid adding multiple handlers if this module is reloaded
+if not logger.hasHandlers():  # Avoid adding multiple handlers if module is reloaded
     handler = logging.StreamHandler()
-    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(name)s - %(module)s.%(funcName)s:%(lineno)d - %(message)s')
+    formatter = logging.Formatter(
+        '%(asctime)s - %(levelname)s - %(name)s - %(module)s.%(funcName)s:%(lineno)d - %(message)s'
+    )
     handler.setFormatter(formatter)
     logger.addHandler(handler)
-    logger.setLevel(logging.INFO) # Default level, can be adjusted
+    logger.setLevel(logging.INFO)
+
+# Configuration constants
+MAX_RETRIES = int(os.environ.get("YOUTUBE_API_MAX_RETRIES", "1"))
+RETRY_DELAY_SECONDS = int(os.environ.get("YOUTUBE_API_RETRY_DELAY_SECONDS", "3"))
 
 # --- Helper Functions ---
 

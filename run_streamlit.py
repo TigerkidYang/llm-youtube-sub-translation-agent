@@ -1,6 +1,27 @@
 #!/usr/bin/env python3
 """
-Streamlit Web Application Launch Script
+Streamlit Application Launch Script
+
+This script provides a convenient way to launch the YouTube Subtitle Translation
+web application with proper dependency checking and configuration validation.
+
+Features:
+- Automatic dependency verification
+- Environment configuration checking
+- OpenAI API key validation and setup
+- Graceful error handling and user guidance
+- Streamlit server configuration
+
+Usage:
+    python run_streamlit.py
+
+Requirements:
+- Python 3.8+
+- All dependencies listed in requirements.txt
+- Valid OpenAI API key (required for translation functionality)
+
+Author: YouTube Subtitle Translation Project
+License: MIT
 """
 
 import os

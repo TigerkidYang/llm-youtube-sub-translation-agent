@@ -1,22 +1,37 @@
-from typing import TypedDict, Annotated, Sequence, List, Dict
-from langchain_core.tools import tool 
-from langgraph.graph.message import add_messages
-from get_sub import list_available_languages, fetch_youtube_srt
-from langgraph.graph import StateGraph, START, END
-from dotenv import load_dotenv
-import logging
+"""
+YouTube Subtitle Translation Agent
 
-# Configure logging
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s - %(levelname)s - %(name)s - %(module)s.%(funcName)s:%(lineno)d - %(message)s',
-                    datefmt='%Y-%m-%d %H:%M:%S')
-logger = logging.getLogger(__name__)
-from langchain_core.messages import BaseMessage, AIMessage, ToolMessage, HumanMessage, SystemMessage
-from langgraph.prebuilt import ToolNode
-from langchain_openai import ChatOpenAI
+This module implements a LangGraph-based agent system for translating YouTube video subtitles.
+The agent handles the complete workflow from subtitle extraction to translation and output generation.
+
+Key Features:
+- Multi-language subtitle extraction with fallback mechanisms
+- Context-aware AI translation using OpenAI models
+- Chunked processing for large subtitle files
+- Translation memory for consistency
+- Caching system for avoiding duplicate work
+
+Author: YouTube Subtitle Translation Project
+License: MIT
+"""
+
+# Standard library imports
 import os
-import re 
+import re
+import logging
+from typing import TypedDict, Annotated, Sequence, List, Dict
 
+# Third-party imports
+from dotenv import load_dotenv
+from langchain_core.tools import tool
+from langchain_core.messages import BaseMessage, AIMessage, ToolMessage, HumanMessage, SystemMessage
+from langchain_openai import ChatOpenAI
+from langgraph.graph.message import add_messages
+from langgraph.graph import StateGraph, START, END
+from langgraph.prebuilt import ToolNode
+
+# Local imports
+from get_sub import list_available_languages, fetch_youtube_srt
 from prompts import (
     SUBTITLE_EXTRACTION_SYSTEM_PROMPT,
     TRANSLATION_CONTEXT_SYSTEM_PROMPT,
@@ -25,84 +40,132 @@ from prompts import (
     CHUNK_TRANSLATION_HUMAN_PROMPT
 )
 
+# Load environment variables
 load_dotenv()
 
-# Constants
-# Load CHUNK_SIZE from environment variable, default to 50
-CHUNK_SIZE = int(os.environ.get("AGENT_CHUNK_SIZE", "50"))
-# Load MAX_TRANSLATION_RETRIES from environment variable, default to 2
-MAX_TRANSLATION_RETRIES = int(os.environ.get("AGENT_MAX_TRANSLATION_RETRIES", "2"))
+# Configure logging with consistent format
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(name)s - %(module)s.%(funcName)s:%(lineno)d - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+logger = logging.getLogger(__name__)
 
-DEFAULT_EXTRACTION_MODEL = "gpt-4.1"
-DEFAULT_TRANSLATION_MODEL = "gpt-4.1"
-DEFAULT_CONTEXT_MODEL = "o3-mini"  # High TPM model for context generation
+# Configuration constants
+CHUNK_SIZE = int(os.environ.get("AGENT_CHUNK_SIZE", "50"))
+MAX_TRANSLATION_RETRIES = int(os.environ.get("AGENT_MAX_TRANSLATION_RETRIES", "2"))
+DEFAULT_TRANSCRIPT_OUTPUT_DIR = os.environ.get("TRANSCRIPT_OUTPUT_DIR", "transcripts")
+
+# Model configuration
+DEFAULT_EXTRACTION_MODEL = "gpt-4o"
+DEFAULT_TRANSLATION_MODEL = "gpt-4o"
+DEFAULT_CONTEXT_MODEL = "o1-mini"  # High TPM model for context generation
+
 EXTRACTION_MODEL_NAME = os.environ.get("EXTRACTION_MODEL", DEFAULT_EXTRACTION_MODEL)
 TRANSLATION_MODEL_NAME = os.environ.get("TRANSLATION_MODEL", DEFAULT_TRANSLATION_MODEL)
 CONTEXT_MODEL_NAME = os.environ.get("CONTEXT_MODEL", DEFAULT_CONTEXT_MODEL)
-# Default transcript output directory, can be overridden by environment variable
-DEFAULT_TRANSCRIPT_OUTPUT_DIR = "transcripts"
 
 class AgentState(TypedDict):
-    video_link: str # URL of the YouTube video to be translated.
-    original_language: str # User's stated original language preference (e.g., 'English', 'en')
-    target_language: str # Desired language for the translated subtitles.
+    """
+    State management for the YouTube subtitle translation agent.
     
-    available_languages: List[Dict[str, any]] | None # Stores list of {'name': str, 'code': str, 'is_generated': bool}
-    chosen_language_code: str | None # The language code selected by the user from available_languages
-    original_srt_path: str | None # File path to the downloaded original SRT subtitles.
+    This TypedDict defines the state structure passed between LangGraph nodes
+    during the subtitle translation workflow.
+    """
+    # Video and language configuration
+    video_link: str  # URL of the YouTube video to be translated
+    original_language: str  # User's stated original language preference (e.g., 'English', 'en')
+    target_language: str  # Desired language for the translated subtitles
     
-    sub_list: List[Dict[str, str]] | None # List of dictionaries representing original subtitle entries. 
-    sub_chunks_list: List[str] | None # Original subtitles divided into processable text chunks. 
-    current_chunk_index: int # Index of the current subtitle chunk being processed. 
-    translation_memory: str | None # Contextual information or glossary for consistent translation.
-    translated_chunks_list: List[str] | None # List of translated subtitle text chunks. 
-    translated_sub_list: List[Dict[str, str]] | None # List of dictionaries representing translated subtitle entries. 
-    final_srt_path: str | None # File path to the final translated SRT subtitles. 
+    # Language detection and selection
+    available_languages: List[Dict[str, any]] | None  # List of {'name': str, 'code': str, 'is_generated': bool}
+    chosen_language_code: str | None  # The language code selected by the user from available_languages
     
-    current_chunk_original_text: str | None # Text of the original subtitle chunk currently being translated. 
-    current_chunk_translated_text: str | None # Text of the translated subtitle chunk. 
-    current_chunk_validation_status: str | None # Status of the current chunk's translation validation (e.g., 'valid', 'invalid'). 
-    current_chunk_retry_count: int # Number of retry attempts for the current translation chunk. 
+    # File paths and subtitle processing
+    original_srt_path: str | None  # File path to the downloaded original SRT subtitles
+    sub_list: List[Dict[str, str]] | None  # List of dictionaries representing original subtitle entries
+    sub_chunks_list: List[str] | None  # Original subtitles divided into processable text chunks
     
-    messages: Annotated[Sequence[BaseMessage], add_messages] # History of messages in the LangGraph agent execution.
+    # Translation state management
+    current_chunk_index: int  # Index of the current subtitle chunk being processed
+    translation_memory: str | None  # Contextual information or glossary for consistent translation
+    translated_chunks_list: List[str] | None  # List of translated subtitle text chunks
+    translated_sub_list: List[Dict[str, str]] | None  # List of dictionaries representing translated subtitle entries
+    final_srt_path: str | None  # File path to the final translated SRT subtitles
+    
+    # Current chunk processing
+    current_chunk_original_text: str | None  # Text of the original subtitle chunk currently being translated
+    current_chunk_translated_text: str | None  # Text of the translated subtitle chunk
+    current_chunk_validation_status: str | None  # Status of the current chunk's translation validation
+    current_chunk_retry_count: int  # Number of retry attempts for the current translation chunk
+    
+    # Agent communication
+    messages: Annotated[Sequence[BaseMessage], add_messages]  # History of messages in the LangGraph agent execution
 
 
 def _parse_srt_to_list(srt_content: str) -> List[Dict[str, str]]:
-    """Parses SRT formatted string content into a list of subtitle dictionaries."""
+    """
+    Parse SRT formatted string content into a list of subtitle dictionaries.
+    
+    Args:
+        srt_content (str): Raw SRT subtitle content
+        
+    Returns:
+        List[Dict[str, str]]: List of subtitle entries with keys:
+            - index: Subtitle sequence number
+            - start_time: Start timestamp in SRT format
+            - end_time: End timestamp in SRT format
+            - text: Subtitle text (converted to single line)
+    """
     subs = []
     if not srt_content:
         return subs
+        
+    # SRT format regex pattern
     pattern = re.compile(
-        r'(\d+)\s*\n'
-        r'(\d{2}:\d{2}:\d{2},\d{3})\s*-->\s*'
-        r'(\d{2}:\d{2}:\d{2},\d{3})\s*\n'
-        r'((?:.+\n?)+)', 
+        r'(\d+)\s*\n'                           # Subtitle index
+        r'(\d{2}:\d{2}:\d{2},\d{3})\s*-->\s*'   # Start time
+        r'(\d{2}:\d{2}:\d{2},\d{3})\s*\n'       # End time
+        r'((?:.+\n?)+)',                        # Text content (can be multi-line)
         re.MULTILINE
     )
+    
     for match in pattern.finditer(srt_content):
         index = match.group(1)
         start_time = match.group(2)
         end_time = match.group(3)
         text_lines = match.group(4).strip().splitlines()
+        
+        # Convert multi-line text to single line for processing
         single_line_text = " ".join(line.strip() for line in text_lines if line.strip())
         
         subs.append({
             'index': index,
             'start_time': start_time,
             'end_time': end_time,
-            'text': single_line_text # Store as single line
+            'text': single_line_text
         })
+    
     return subs
 
 def _list_to_srt_str(sub_list_data: List[Dict[str, str]]) -> str:
-    """Converts a list of subtitle dictionaries back into an SRT formatted string."""
+    """
+    Convert a list of subtitle dictionaries back into SRT formatted string.
+    
+    Args:
+        sub_list_data (List[Dict[str, str]]): List of subtitle dictionaries
+        
+    Returns:
+        str: Complete SRT formatted subtitle content
+    """
     srt_output = []
+    
     for item in sub_list_data:
         srt_output.append(item['index'])
         srt_output.append(f"{item['start_time']} --> {item['end_time']}")
-        # Ensures SRT compliance, allowing multi-line text if reintroduced by LLM.
-        srt_output.append(item['text']) 
-        srt_output.append("")
+        srt_output.append(item['text'])  # Allows multi-line text if reintroduced by LLM
+        srt_output.append("")  # Empty line separator between subtitle blocks
+        
     return "\n".join(srt_output)
 
 def _clean_llm_output(text: str) -> str:

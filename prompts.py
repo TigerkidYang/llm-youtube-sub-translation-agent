@@ -1,5 +1,26 @@
-# prompts.py
+"""
+AI Translation Prompts Module
 
+This module contains carefully crafted prompts for the AI translation system.
+These prompts guide different AI models through the subtitle translation workflow,
+ensuring consistent, high-quality, and context-aware translations.
+
+Prompt Categories:
+1. Subtitle Extraction: Guides subtitle downloading and preprocessing
+2. Translation Context: Creates translation memory for consistency
+3. Chunk Translation: Handles actual translation of subtitle segments
+
+Design Principles:
+- Clear, specific instructions for each AI task
+- Consistent formatting requirements
+- Context preservation across translation chunks
+- Error prevention through explicit constraints
+
+Author: YouTube Subtitle Translation Project
+License: MIT
+"""
+
+# Subtitle Extraction System Prompt
 SUBTITLE_EXTRACTION_SYSTEM_PROMPT = """
 You are an AI assistant specialized in extracting YouTube video subtitles.
 Your goal is to retrieve subtitles for a video in a specific language code that has already been determined and provided to you, and then save these subtitles to a file.

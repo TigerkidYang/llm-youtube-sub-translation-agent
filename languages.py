@@ -1,4 +1,37 @@
-# Multi-language support for YouTube Subtitle AI Translator
+"""
+Multi-language Support Module
+
+This module provides comprehensive internationalization (i18n) support for the
+YouTube Subtitle Translation application. It contains UI text translations
+for multiple languages to enable a localized user experience.
+
+Supported Languages:
+- English (en)
+- Simplified Chinese (zh-CN)
+- Traditional Chinese (zh-TW) 
+- Japanese (ja)
+- Korean (ko)
+- French (fr)
+- German (de)
+- Spanish (es)
+- Russian (ru)
+- Italian (it)
+- Portuguese (pt)
+
+Translation Categories:
+- User interface elements
+- Status messages
+- Error messages
+- Help text and instructions
+- Button labels and controls
+
+Usage:
+    from languages import LANGUAGES
+    text = LANGUAGES['en']['page_title']
+
+Author: YouTube Subtitle Translation Project
+License: MIT
+"""
 
 LANGUAGES = {
     "en": {

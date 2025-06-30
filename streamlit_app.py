@@ -1,15 +1,44 @@
-import streamlit as st
+"""
+YouTube Subtitle Translation Web Interface
+
+This module provides a Streamlit-based web interface for the YouTube subtitle
+translation system. It offers an intuitive UI for video processing, language
+selection, translation management, and result visualization.
+
+Key Features:
+- Interactive video player with synchronized subtitles
+- Multi-language UI support
+- Real-time translation progress tracking
+- Subtitle overlay controls
+- Download functionality for translated subtitles
+- Caching system for performance optimization
+
+Dependencies:
+- streamlit: Web interface framework
+- Agent: Translation logic
+- get_sub: Subtitle extraction
+- languages: Multi-language support
+
+Author: YouTube Subtitle Translation Project
+License: MIT
+"""
+
+# Standard library imports
 import os
 import sys
-from typing import Dict, List
-import tempfile
-import traceback
 import re
 import json
+import tempfile
+import traceback
+from typing import Dict, List
+
+# Third-party imports
+import streamlit as st
 
 # Add current directory to Python path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
+# Local imports
 from get_sub import list_available_languages
 from Agent import translate_video_api, EXTRACTION_MODEL_NAME, TRANSLATION_MODEL_NAME, CONTEXT_MODEL_NAME
 from languages import LANGUAGES
@@ -416,7 +445,7 @@ def create_video_player_with_subtitles(video_url: str, video_id: str, subtitles_
     return html_code
 
 def render_setup_interface():
-    """渲染设置界面"""
+    """Render the setup interface for video input and translation configuration."""
     # Main title
     st.markdown(f"<h1 class='main-header'>🎬 {get_text('page_title')}</h1>", unsafe_allow_html=True)
     st.markdown(f"<p style='text-align: center; color: #666;'>{get_text('page_description')}</p>", unsafe_allow_html=True)
@@ -647,7 +676,7 @@ def render_setup_interface():
                 st.error(f"❌ {get_text('invalid_url')}")
 
 def render_player_interface():
-    """渲染播放器界面"""
+    """Render the video player interface with subtitle controls."""
     # Add CSS class for player mode
     st.markdown('<div class="player-mode">', unsafe_allow_html=True)
     
@@ -752,6 +781,12 @@ def render_player_interface():
     st.markdown('</div>', unsafe_allow_html=True)
 
 def main():
+    """
+    Main application entry point.
+    
+    Initializes the Streamlit application, manages session state,
+    and routes between setup and player interfaces based on user progress.
+    """
     # Initialize session state
     if 'page_mode' not in st.session_state:
         st.session_state.page_mode = 'setup'
