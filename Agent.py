@@ -33,10 +33,12 @@ CHUNK_SIZE = int(os.environ.get("AGENT_CHUNK_SIZE", "50"))
 # Load MAX_TRANSLATION_RETRIES from environment variable, default to 2
 MAX_TRANSLATION_RETRIES = int(os.environ.get("AGENT_MAX_TRANSLATION_RETRIES", "2"))
 
-DEFAULT_EXTRACTION_MODEL = "o3-mini"
-DEFAULT_TRANSLATION_MODEL = "o3-mini"
+DEFAULT_EXTRACTION_MODEL = "gpt-4.1"
+DEFAULT_TRANSLATION_MODEL = "gpt-4.1"
+DEFAULT_CONTEXT_MODEL = "o3-mini"  # High TPM model for context generation
 EXTRACTION_MODEL_NAME = os.environ.get("EXTRACTION_MODEL", DEFAULT_EXTRACTION_MODEL)
 TRANSLATION_MODEL_NAME = os.environ.get("TRANSLATION_MODEL", DEFAULT_TRANSLATION_MODEL)
+CONTEXT_MODEL_NAME = os.environ.get("CONTEXT_MODEL", DEFAULT_CONTEXT_MODEL)
 # Default transcript output directory, can be overridden by environment variable
 DEFAULT_TRANSCRIPT_OUTPUT_DIR = "transcripts"
 
@@ -226,10 +228,11 @@ def get_language_choices_node(state: AgentState) -> AgentState:
         "final_srt_path": None
     }
 
-# Tools for the subtitle extraction agent (get_sub_node). Only fetch_youtube_srt is needed now.
-extraction_tools = [fetch_youtube_srt]
+# Create model instances
+extraction_tools = [list_available_languages, fetch_youtube_srt]
 llm = ChatOpenAI(model=EXTRACTION_MODEL_NAME).bind_tools(extraction_tools)
 translation_llm = ChatOpenAI(model=TRANSLATION_MODEL_NAME) 
+context_llm = ChatOpenAI(model=CONTEXT_MODEL_NAME)  # Dedicated model for context generation
 
 def get_sub_node(state: AgentState) -> AgentState:
     """Invokes the LLM to extract subtitles using the chosen language and video link."""
@@ -350,7 +353,7 @@ def generate_translation_context_node(state: AgentState) -> dict:
     
     sys_prompt = TRANSLATION_CONTEXT_SYSTEM_PROMPT.format(target_language=target_language)
     human_prompt = TRANSLATION_CONTEXT_HUMAN_PROMPT.format(subtitle_full_text=full_text, target_language=target_language)
-    ai_response = translation_llm.invoke([SystemMessage(content=sys_prompt), HumanMessage(content=human_prompt)])
+    ai_response = context_llm.invoke([SystemMessage(content=sys_prompt), HumanMessage(content=human_prompt)])
     logger.info(f"LLM generated translation memory (first 200 chars): {ai_response.content[:200]}...")
     return {"translation_memory": ai_response.content}
 
@@ -627,8 +630,99 @@ if __name__ == '__main__':
                 logger.info("---")
         logger.info("##################################################")
 
+def _extract_video_id_from_url(video_url: str) -> str:
+    """
+    Extract video ID from YouTube URL.
+    
+    Args:
+        video_url: YouTube video URL
+        
+    Returns:
+        str: Video ID
+        
+    Raises:
+        ValueError: If video ID cannot be extracted
+    """
+    import re
+    
+    patterns = [
+        r'(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=([^&]+)',
+        r'(?:https?:\/\/)?(?:www\.)?youtu\.be\/([^?]+)',
+        r'(?:https?:\/\/)?(?:www\.)?youtube\.com\/embed\/([^?]+)',
+        r'(?:https?:\/\/)?(?:www\.)?youtube\.com\/v\/([^?]+)'
+    ]
+    
+    for pattern in patterns:
+        match = re.search(pattern, video_url)
+        if match:
+            return match.group(1)
+    
+    raise ValueError(f"Cannot extract video ID from URL: {video_url}")
+
+def _check_translation_cache(video_url: str, source_language_code: str, target_language: str) -> dict:
+    """
+    Check if translation already exists in cache.
+    
+    Args:
+        video_url: YouTube video URL
+        source_language_code: Source language code
+        target_language: Target language code
+        
+    Returns:
+        dict: Cache result with 'exists' boolean and file paths
+    """
+    try:
+        # Extract video ID
+        video_id = _extract_video_id_from_url(video_url)
+        
+        # Get transcript directory
+        transcript_dir = os.environ.get("TRANSCRIPT_OUTPUT_DIR", DEFAULT_TRANSCRIPT_OUTPUT_DIR)
+        
+        # Construct file paths
+        original_srt_filename = f"{video_id}_{source_language_code}.srt"
+        translated_srt_filename = f"{video_id}_{source_language_code}_{target_language}.srt"
+        
+        original_srt_path = os.path.join(transcript_dir, original_srt_filename)
+        translated_srt_path = os.path.join(transcript_dir, translated_srt_filename)
+        
+        # Check if translated file exists and is not empty
+        if os.path.exists(translated_srt_path) and os.path.getsize(translated_srt_path) > 0:
+            logger.info(f"Found existing translation cache: {translated_srt_path}")
+            
+            # Also check if original exists for completeness
+            original_exists = os.path.exists(original_srt_path) and os.path.getsize(original_srt_path) > 0
+            
+            # Read translated content to get subtitle count
+            with open(translated_srt_path, 'r', encoding='utf-8') as f:
+                translated_content = f.read()
+            
+            # Parse to get subtitle list for compatibility
+            translated_sub_list = _parse_srt_to_list(translated_content)
+            
+            return {
+                'exists': True,
+                'video_id': video_id,
+                'original_srt_path': original_srt_path if original_exists else None,
+                'final_srt_path': translated_srt_path,
+                'translated_sub_list': translated_sub_list,
+                'translated_content': translated_content,
+                'total_chunks': len(translated_sub_list)
+            }
+        else:
+            logger.info(f"No existing translation found for {video_id}_{source_language_code}_{target_language}")
+            return {
+                'exists': False,
+                'video_id': video_id,
+                'original_srt_path': original_srt_path,
+                'final_srt_path': translated_srt_path
+            }
+            
+    except Exception as e:
+        logger.warning(f"Error checking translation cache: {e}")
+        return {'exists': False}
+
 def translate_video_api(video_url: str, source_language_code: str, target_language: str, 
-                       extraction_model: str = None, translation_model: str = None, progress_callback=None):
+                       extraction_model: str = None, translation_model: str = None, context_model: str = None, progress_callback=None):
     """
     API function for Streamlit to call the translation workflow.
     
@@ -638,23 +732,51 @@ def translate_video_api(video_url: str, source_language_code: str, target_langua
         target_language: Target language (e.g., 'zh-CN')
         extraction_model: Model for subtitle extraction (optional, defaults to environment variable or o3-mini)
         translation_model: Model for translation (optional, defaults to environment variable or o3-mini)
+        context_model: Model for context generation (optional, defaults to environment variable or gpt-4o-mini)
         progress_callback: Optional callback function for progress updates
     
     Returns:
         dict: Result containing paths and status
     """
     try:
+        # Check translation cache first
+        if progress_callback:
+            progress_callback("cache_check", 5, "Checking for existing translation...")
+        
+        cache_result = _check_translation_cache(video_url, source_language_code, target_language)
+        
+        if cache_result['exists']:
+            logger.info("Using existing translation from cache")
+            if progress_callback:
+                progress_callback("cache_found", 100, "Found existing translation, loading from cache...")
+            
+            return {
+                "success": True,
+                "final_srt_path": cache_result['final_srt_path'],
+                "original_srt_path": cache_result['original_srt_path'],
+                "sub_list": None,  # Original subtitle list not needed for cache result
+                "translated_sub_list": cache_result['translated_sub_list'],
+                "total_chunks": cache_result['total_chunks'],
+                "from_cache": True
+            }
+        
+        # If no cache found, proceed with normal translation workflow
+        if progress_callback:
+            progress_callback("cache_miss", 10, "No existing translation found, starting new translation...")
+        
         # Set model names, prioritizing function parameters over environment variables
         extraction_model_name = extraction_model or EXTRACTION_MODEL_NAME
         translation_model_name = translation_model or TRANSLATION_MODEL_NAME
+        context_model_name = context_model or CONTEXT_MODEL_NAME
         
         # Create model instances with the specified models
-        global llm, translation_llm
+        global llm, translation_llm, context_llm
         llm = ChatOpenAI(model=extraction_model_name).bind_tools(extraction_tools)
         translation_llm = ChatOpenAI(model=translation_model_name)
+        context_llm = ChatOpenAI(model=context_model_name)
         
         if progress_callback:
-            progress_callback("init", 15, f"Initializing translation workflow with models: {extraction_model_name} & {translation_model_name}...")
+            progress_callback("init", 15, f"Initializing translation workflow with models: Extract({extraction_model_name}) / Context({context_model_name}) / Translate({translation_model_name})...")
         
         # Create initial state for the workflow
         initial_state = {

@@ -11,7 +11,7 @@ import json
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from get_sub import list_available_languages
-from Agent import translate_video_api, EXTRACTION_MODEL_NAME, TRANSLATION_MODEL_NAME
+from Agent import translate_video_api, EXTRACTION_MODEL_NAME, TRANSLATION_MODEL_NAME, CONTEXT_MODEL_NAME
 from languages import LANGUAGES
 
 def get_text(key: str, **kwargs) -> str:
@@ -66,6 +66,13 @@ st.markdown("""
         padding-right: 2rem;
     }
     
+    /* Player mode: full width layout */
+    .player-mode .main .block-container {
+        max-width: 100%;
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+    
     .main-header {
         text-align: center;
         color: #1f77b4;
@@ -89,10 +96,25 @@ st.markdown("""
         margin: 0 auto;
     }
     
+    /* Player mode: maximize video container */
+    .player-mode .video-container {
+        max-width: 100%;
+    }
+    
     /* Hide streamlit menu and footer for cleaner look */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
+    
+    /* Hide sidebar in player mode */
+    .player-mode .css-1d391kg {
+        display: none;
+    }
+    
+    /* Expand main content in player mode */
+    .player-mode .css-18e3th9 {
+        margin-left: 0 !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -160,7 +182,7 @@ def create_video_player_with_subtitles(video_url: str, video_id: str, subtitles_
     # Create HTML for the video player with subtitles
     html_code = f"""
     <div style="width: 100%; margin: 0; padding: 0;">
-        <div style="position: relative; background: #000; border-radius: 12px; overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.3); aspect-ratio: 16/9; max-height: 80vh;">
+        <div style="position: relative; background: #000; border-radius: 12px; overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.3); width: 100%; height: 500px;">
             <iframe id="youtube-player" 
                 width="100%" 
                 height="100%" 
@@ -178,28 +200,32 @@ def create_video_player_with_subtitles(video_url: str, video_id: str, subtitles_
                 transform: translateX(-50%); 
                 background: rgba(0, 0, 0, 0.85); 
                 color: white; 
-                padding: 12px 20px; 
+                padding: 8px 12px; 
                 border-radius: 8px; 
-                font-size: calc(14px + 0.5vw); 
+                font-size: calc(12px + 0.5vw); 
                 font-weight: 500; 
                 text-align: center; 
-                max-width: 85%; 
-                word-wrap: break-word;
+                max-width: 90vw; 
+                white-space: nowrap;
+                overflow: visible;
                 display: none;
                 z-index: 100;
                 text-shadow: 2px 2px 6px rgba(0,0,0,0.9);
                 line-height: 1.4;
                 border: 1px solid rgba(255,255,255,0.1);
                 backdrop-filter: blur(4px);
+                box-sizing: border-box;
             ">
                 {get_text('no_subtitle_at_time')}
             </div>
         </div>
         
-        <!-- Control panel -->
-        <div style="margin-top: 15px; text-align: center; color: #666; font-size: 14px;">
-            <span id="current-time-display">00:00</span> | 
-            <span id="current-subtitle-status">{get_text('no_subtitle_at_time')}</span>
+        <!-- Simple Control Panel -->
+        <div style="margin-top: 15px; text-align: center;">
+            <button id="subtitle-toggle" onclick="toggleSubtitleOverlay()" 
+                    style="padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: 500; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                🔇 {get_text('show_video_subtitles')}
+            </button>
         </div>
     </div>
 
@@ -209,6 +235,7 @@ def create_video_player_with_subtitles(video_url: str, video_id: str, subtitles_
         let currentSubtitleIndex = -1;
         let player;
         let updateInterval;
+        let subtitleOverlayEnabled = false;
         
         // Load YouTube IFrame API
         function loadYouTubeAPI() {{
@@ -254,7 +281,6 @@ def create_video_player_with_subtitles(video_url: str, video_id: str, subtitles_
                 if (player && player.getCurrentTime) {{
                     const currentTime = player.getCurrentTime();
                     updateCurrentSubtitle(currentTime);
-                    updateTimeDisplay(currentTime);
                 }}
             }}, 300); // Update every 300ms for smoother experience
         }}
@@ -267,46 +293,66 @@ def create_video_player_with_subtitles(video_url: str, video_id: str, subtitles_
         }}
         
         function updateCurrentSubtitle(currentTime) {{
-            const subtitle = findCurrentSubtitle(currentTime);
+            const subtitle = findCurrentSubtitle(subtitles, currentTime);
             const subtitleOverlay = document.getElementById('subtitle-overlay');
-            const statusDisplay = document.getElementById('current-subtitle-status');
             
             if (subtitle) {{
                 const subtitleIndex = subtitles.indexOf(subtitle);
                 if (subtitleIndex !== currentSubtitleIndex) {{
                     currentSubtitleIndex = subtitleIndex;
                     
-                    // Update overlay with smooth transition
-                    subtitleOverlay.style.opacity = '0';
-                    setTimeout(() => {{
-                        subtitleOverlay.textContent = subtitle.text;
-                        subtitleOverlay.style.display = 'block';
-                        subtitleOverlay.style.opacity = '1';
-                    }}, 100);
-                    
-                    // Update status
-                    statusDisplay.textContent = `字幕 ${{subtitleIndex + 1}}/${{subtitles.length}}: ${{subtitle.text.substring(0, 50)}}${{subtitle.text.length > 50 ? '...' : ''}}`;
+                    // Update video overlay only if enabled
+                    if (subtitleOverlayEnabled) {{
+                        subtitleOverlay.style.opacity = '0';
+                        setTimeout(() => {{
+                            subtitleOverlay.textContent = subtitle.text;
+                            subtitleOverlay.style.display = 'block';
+                            subtitleOverlay.style.opacity = '1';
+                        }}, 100);
+                    }}
                 }}
             }} else {{
                 // No subtitle at current time
                 if (currentSubtitleIndex !== -1) {{
                     currentSubtitleIndex = -1;
-                    subtitleOverlay.style.opacity = '0';
-                    setTimeout(() => {{
-                        subtitleOverlay.style.display = 'none';
-                    }}, 200);
-                    statusDisplay.textContent = '{get_text('no_subtitle_at_time')}';
+                    
+                    // Hide video overlay
+                    if (subtitleOverlayEnabled) {{
+                        subtitleOverlay.style.opacity = '0';
+                        setTimeout(() => {{
+                            subtitleOverlay.style.display = 'none';
+                        }}, 200);
+                    }}
                 }}
             }}
         }}
-        
-        function updateTimeDisplay(currentTime) {{
-            const timeDisplay = document.getElementById('current-time-display');
-            timeDisplay.textContent = formatTime(currentTime);
+
+        function toggleSubtitleOverlay() {{
+            subtitleOverlayEnabled = !subtitleOverlayEnabled;
+            const toggleButton = document.getElementById('subtitle-toggle');
+            const overlay = document.getElementById('subtitle-overlay');
+            
+            if (subtitleOverlayEnabled) {{
+                toggleButton.innerHTML = '🔊 {get_text("hide_video_subtitles")}';
+                toggleButton.style.background = '#dc3545';
+                // Show current subtitle if any
+                if (currentSubtitleIndex !== -1 && subtitles[currentSubtitleIndex]) {{
+                    overlay.textContent = subtitles[currentSubtitleIndex].text;
+                    overlay.style.display = 'block';
+                    overlay.style.opacity = '1';
+                }}
+            }} else {{
+                toggleButton.innerHTML = '🔇 {get_text("show_video_subtitles")}';
+                toggleButton.style.background = '#007bff';
+                overlay.style.opacity = '0';
+                setTimeout(() => {{
+                    overlay.style.display = 'none';
+                }}, 200);
+            }}
         }}
         
-        function findCurrentSubtitle(currentTime) {{
-            return subtitles.find(subtitle => 
+                function findCurrentSubtitle(subtitleArray, currentTime) {{
+            return subtitleArray.find(subtitle => 
                 currentTime >= subtitle.start && currentTime <= subtitle.end
             );
         }}
@@ -328,22 +374,30 @@ def create_video_player_with_subtitles(video_url: str, video_id: str, subtitles_
         style.textContent = `
             #subtitle-overlay {{
                 transition: opacity 0.2s ease-in-out;
+                max-width: 90vw !important;
+                white-space: nowrap !important;
+                overflow: visible !important;
+                box-sizing: border-box !important;
             }}
             #current-subtitle-status {{
                 transition: color 0.3s ease;
             }}
             
-            /* Responsive subtitle font size */
+            /* Responsive subtitle font size and width */
             @media (max-width: 768px) {{
                 #subtitle-overlay {{
                     font-size: 16px !important;
-                    padding: 10px 16px !important;
+                    padding: 6px 10px !important;
+                    max-width: 95vw !important;
+                    white-space: nowrap !important;
                 }}
             }}
             
             @media (min-width: 1200px) {{
                 #subtitle-overlay {{
                     font-size: 20px !important;
+                    max-width: 85vw !important;
+                    white-space: nowrap !important;
                 }}
             }}
         `;
@@ -361,10 +415,8 @@ def create_video_player_with_subtitles(video_url: str, video_id: str, subtitles_
     
     return html_code
 
-def main():
-    # Language selector at the top
-    language_selector()
-    
+def render_setup_interface():
+    """渲染设置界面"""
     # Main title
     st.markdown(f"<h1 class='main-header'>🎬 {get_text('page_title')}</h1>", unsafe_allow_html=True)
     st.markdown(f"<p style='text-align: center; color: #666;'>{get_text('page_description')}</p>", unsafe_allow_html=True)
@@ -377,8 +429,7 @@ def main():
         st.markdown(f"### ℹ️ {get_text('usage_instructions')}")
         st.markdown(get_text("usage_list"))
 
-    # Main interface - full width
-    # Create a centered container for form elements
+    # Main interface - centered container for form elements
     col1, col2, col3 = st.columns([1, 3, 1])
     
     with col2:
@@ -477,10 +528,12 @@ def main():
                             # Get default indices based on .env settings
                             default_extraction_display = get_model_display_name(EXTRACTION_MODEL_NAME)
                             default_translation_display = get_model_display_name(TRANSLATION_MODEL_NAME)
+                            default_context_display = get_model_display_name(CONTEXT_MODEL_NAME)
                             default_extraction_index = list(openai_models.keys()).index(default_extraction_display)
                             default_translation_index = list(openai_models.keys()).index(default_translation_display)
+                            default_context_index = list(openai_models.keys()).index(default_context_display)
                             
-                            col_extract_model, col_translate_model = st.columns(2)
+                            col_extract_model, col_context_model, col_translate_model = st.columns(3)
                             
                             with col_extract_model:
                                 selected_extraction_display = st.selectbox(
@@ -490,6 +543,15 @@ def main():
                                     help=get_text("extraction_model_help")
                                 )
                                 selected_extraction_model = openai_models[selected_extraction_display]
+                            
+                            with col_context_model:
+                                selected_context_display = st.selectbox(
+                                    get_text("context_model"),
+                                    options=list(openai_models.keys()),
+                                    index=default_context_index,  # Use .env default
+                                    help=get_text("context_model_help")
+                                )
+                                selected_context_model = openai_models[selected_context_display]
                             
                             with col_translate_model:
                                 selected_translation_display = st.selectbox(
@@ -504,6 +566,22 @@ def main():
                             st.markdown(f"### 🚀 {get_text('start_translation')}")
                             
                             if st.button(f"🎯 {get_text('start_button')}", type="primary", use_container_width=True):
+                                # Store translation settings in session state
+                                st.session_state.translation_settings = {
+                                    'video_url': video_url,
+                                    'video_id': video_id,
+                                    'source_language_code': selected_source_code,
+                                    'target_language': selected_target_code,
+                                    'extraction_model': selected_extraction_model,
+                                    'translation_model': selected_translation_model,
+                                    'context_model': selected_context_model,
+                                    'source_display': selected_source_display,
+                                    'target_display': selected_target_display,
+                                    'extraction_display': selected_extraction_display,
+                                    'translation_display': selected_translation_display,
+                                    'context_display': selected_context_display
+                                }
+                                
                                 # Create progress container
                                 progress_container = st.container()
                                 
@@ -513,119 +591,39 @@ def main():
                                     status_text = st.empty()
                                     
                                     try:
-                                        # Display start status
-                                        status_text.text(f"🔄 {get_text('initializing')}")
-                                        progress_bar.progress(10)
-                                        
-                                        # Call translation API
-                                        status_text.text(f"📥 {get_text('downloading')}")
-                                        progress_bar.progress(20)
-                                        
-                                        # Call our modified translation function
+                                        # Call our modified translation function with progress callback
                                         result = translate_video_api(
                                             video_url=video_url,
                                             source_language_code=selected_source_code,
                                             target_language=selected_target_code,
                                             extraction_model=selected_extraction_model,
                                             translation_model=selected_translation_model,
+                                            context_model=selected_context_model,
                                             progress_callback=lambda step, progress, message: (
                                                 progress_bar.progress(progress),
                                                 status_text.text(f"🔄 {message}")
                                             )
                                         )
                                         
-                                        # Completion status
-                                        progress_bar.progress(100)
-                                        status_text.text(f"✅ {get_text('translation_completed')}")
-                                        
+                                        # Handle different completion scenarios
                                         if result and "final_srt_path" in result:
-                                            st.markdown("<div class='success-box'>", unsafe_allow_html=True)
-                                            st.success(f"🎉 {get_text('task_completed')}")
-                                            st.markdown("</div>", unsafe_allow_html=True)
-                                            
-                                            # Read translated subtitle file
-                                            final_srt_path = result["final_srt_path"]
-                                            if os.path.exists(final_srt_path):
-                                                with open(final_srt_path, 'r', encoding='utf-8') as f:
-                                                    translated_content = f.read()
-                                                
-                                                # Parse subtitles for video player
-                                                parsed_subtitles = parse_srt_content(translated_content)
-                                                
-                                                # Create tabs for different views
-                                                tab1, tab2, tab3 = st.tabs([
-                                                    f"🎬 {get_text('video_player')}", 
-                                                    f"📝 {get_text('subtitle_preview')}", 
-                                                    f"📥 {get_text('download_button')}"
-                                                ])
-                                                
-                                                with tab1:
-                                                    # Video player with synchronized subtitles
-                                                    st.markdown(f"### {get_text('video_player')}")
-                                                    st.info(f"ℹ️ {get_text('video_player_help')}")
-                                                    
-                                                    if parsed_subtitles:
-                                                        # Create the video player HTML
-                                                        player_html = create_video_player_with_subtitles(
-                                                            video_url, video_id, parsed_subtitles
-                                                        )
-                                                        
-                                                        # Display the video player
-                                                        st.components.v1.html(
-                                                            player_html, 
-                                                            height=650,
-                                                            scrolling=False
-                                                        )
-                                                    else:
-                                                        st.warning("⚠️ Unable to parse subtitles for video player")
-                                                
-                                                with tab2:
-                                                    # Display subtitle preview
-                                                    st.markdown(f"### 📝 {get_text('subtitle_preview')}")
-                                                    st.text_area(
-                                                        get_text("translated_content"),
-                                                        value=translated_content[:1000] + ("..." if len(translated_content) > 1000 else ""),
-                                                        height=200,
-                                                        disabled=True
-                                                    )
-                                                    
-                                                    # Show full content in expander
-                                                    with st.expander("🔍 View Full Content", expanded=False):
-                                                        st.text_area(
-                                                            "Complete translated subtitles",
-                                                            value=translated_content,
-                                                            height=400,
-                                                            disabled=True
-                                                        )
-                                                
-                                                with tab3:
-                                                    # Download button and statistics
-                                                    st.markdown(f"### 📥 {get_text('download_button')}")
-                                                    
-                                                    # Download button
-                                                    filename = f"translated_{selected_target_code}_{video_id}.srt"
-                                                    st.download_button(
-                                                        label=f"📥 {get_text('download_button')}",
-                                                        data=translated_content,
-                                                        file_name=filename,
-                                                        mime="text/plain",
-                                                        use_container_width=True
-                                                    )
-                                                    
-                                                    # Display statistics
-                                                    if "translated_sub_list" in result:
-                                                        total_subtitles = len(result["translated_sub_list"])
-                                                        st.info(get_text("translated_count", count=total_subtitles))
-                                                    
-                                                    # Additional file information
-                                                    st.markdown("**File Information:**")
-                                                    st.write(f"- File size: {len(translated_content)} characters")
-                                                    st.write(f"- Subtitle entries: {len(parsed_subtitles) if parsed_subtitles else 0}")
-                                                    st.write(f"- Source language: {selected_source_display}")
-                                                    st.write(f"- Target language: {selected_target_display}")
-                                                    st.write(f"- Models used: {selected_extraction_display} (extraction), {selected_translation_display} (translation)")
+                                            # Check if result came from cache
+                                            if result.get("from_cache", False):
+                                                progress_bar.progress(100)
+                                                status_text.text(f"⚡ {get_text('cache_found')}")
+                                                st.success(f"🎯 {get_text('cache_found')}")
                                             else:
-                                                st.error(f"❌ {get_text('file_not_found')}")
+                                                progress_bar.progress(100)
+                                                status_text.text(f"✅ {get_text('translation_completed')}")
+                                            
+                                            # Store translation result in session state
+                                            st.session_state.translation_result = result
+                                            
+                                            # Switch to player mode
+                                            st.session_state.page_mode = 'player'
+                                            
+                                            # Force page refresh to show player interface
+                                            st.rerun()
                                         else:
                                             st.error(f"❌ {get_text('translation_error')}")
                                             
@@ -648,6 +646,125 @@ def main():
             else:
                 st.error(f"❌ {get_text('invalid_url')}")
 
+def render_player_interface():
+    """渲染播放器界面"""
+    # Add CSS class for player mode
+    st.markdown('<div class="player-mode">', unsafe_allow_html=True)
+    
+    # Header with back button
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col1:
+        if st.button("🔙 " + get_text('new_translation'), type="secondary"):
+            # Clear session state and return to setup
+            st.session_state.page_mode = 'setup'
+            if 'translation_result' in st.session_state:
+                del st.session_state.translation_result
+            if 'translation_settings' in st.session_state:
+                del st.session_state.translation_settings
+            st.rerun()
+    
+    with col2:
+        st.markdown(f"<h1 class='main-header'>🎬 {get_text('video_player')}</h1>", unsafe_allow_html=True)
+    
+    # Success message
+    st.success(f"🎉 {get_text('task_completed')}")
+    
+    # Get data from session state
+    settings = st.session_state.translation_settings
+    result = st.session_state.translation_result
+    
+    # Read translated subtitle file
+    final_srt_path = result["final_srt_path"]
+    if os.path.exists(final_srt_path):
+        with open(final_srt_path, 'r', encoding='utf-8') as f:
+            translated_content = f.read()
+        
+        # Parse subtitles for video player
+        parsed_subtitles = parse_srt_content(translated_content)
+        
+        # Display video player (full width)
+        if parsed_subtitles:
+            # Create player HTML
+            player_html = create_video_player_with_subtitles(
+                settings['video_url'], 
+                settings['video_id'], 
+                parsed_subtitles
+            )
+            
+            # Display player with full container width
+            st.components.v1.html(
+                player_html, 
+                height=800,
+                scrolling=False
+            )
+        else:
+            st.warning("⚠️ Unable to parse subtitles for video player")
+
+        # Control area below player
+        col1, col2 = st.columns(2)
+
+        with col1:
+            # Subtitle preview
+            st.markdown(f"### 📝 {get_text('subtitle_preview')}")
+            with st.expander("View Subtitle Content", expanded=False):
+                st.text_area(
+                    get_text("translated_content"),
+                    value=translated_content,
+                    height=300,
+                    disabled=True
+                )
+
+        with col2:
+            # Download and statistics
+            st.markdown(f"### 📥 {get_text('download_button')}")
+            
+            filename = f"translated_{settings['target_language']}_{settings['video_id']}.srt"
+            st.download_button(
+                label=f"📥 {get_text('download_button')}",
+                data=translated_content,
+                file_name=filename,
+                mime="text/plain",
+                use_container_width=True
+            )
+            
+            # Statistics
+            if "translated_sub_list" in result:
+                total_subtitles = len(result["translated_sub_list"])
+                st.info(get_text("translated_count", count=total_subtitles))
+            
+            st.markdown("**File Information:**")
+            st.write(f"- Subtitle entries: {len(parsed_subtitles) if parsed_subtitles else 0}")
+            st.write(f"- Source: {settings['source_display']}")
+            st.write(f"- Target: {settings['target_display']}")
+            
+            # Show cache status if available
+            if result.get("from_cache", False):
+                st.write(f"- Status: ⚡ {get_text('loaded_from_cache')}")
+            else:
+                st.write(f"- Status: 🔄 {get_text('freshly_translated')}")
+                st.write(f"- Extract Model: {settings['extraction_display']}")
+                st.write(f"- Context Model: {settings['context_display']}")
+                st.write(f"- Translate Model: {settings['translation_display']}")
+    else:
+        st.error(f"❌ {get_text('file_not_found')}")
+    
+    # Close player mode div
+    st.markdown('</div>', unsafe_allow_html=True)
+
+def main():
+    # Initialize session state
+    if 'page_mode' not in st.session_state:
+        st.session_state.page_mode = 'setup'
+    
+    # Language selector at the top
+    language_selector()
+    
+    # Render appropriate interface based on current mode
+    if st.session_state.page_mode == 'setup':
+        render_setup_interface()
+    elif st.session_state.page_mode == 'player':
+        render_player_interface()
+    
     # Footer
     st.markdown("---")
     st.markdown(
