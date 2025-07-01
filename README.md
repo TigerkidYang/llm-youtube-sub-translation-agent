@@ -1,5 +1,5 @@
 <div align="center">
-  <h1>🎬 YouTube Subtitle AI Translator 🌍</h1>
+  <h1>🎬 YTRossetaAI - Watch Youtube in your language 🌍</h1>
   <p>
     An advanced AI-powered web application for high-quality, context-aware translation of YouTube video subtitles with real-time video player integration.
   </p>

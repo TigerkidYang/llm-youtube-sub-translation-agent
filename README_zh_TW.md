@@ -1,5 +1,5 @@
 <div align="center">
-  <h1>🎬 YouTube字幕AI翻譯器 🌍</h1>
+  <h1>🎬 YTRossetaAI - 用你的語言觀看YouTube 🌍</h1>
   <p>
     一個先進的AI驅動網路應用程式，用於高品質、上下文感知的YouTube影片字幕翻譯，整合即時影片播放器。
   </p>

@@ -1,5 +1,5 @@
 <div align="center">
-  <h1>🎬 Traducteur IA de Sous-titres YouTube 🌍</h1>
+  <h1>🎬 YTRossetaAI - Regardez YouTube dans votre langue 🌍</h1>
   <p>
     Une application web avancée alimentée par l'IA pour la traduction de haute qualité et contextuelle des sous-titres vidéo YouTube avec intégration de lecteur vidéo en temps réel.
   </p>

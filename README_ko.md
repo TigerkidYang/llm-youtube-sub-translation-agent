@@ -1,5 +1,5 @@
 <div align="center">
-  <h1>🎬 YouTube 자막 AI 번역기 🌍</h1>
+  <h1>🎬 YTRossetaAI - 당신의 언어로 YouTube 보기 🌍</h1>
   <p>
     실시간 비디오 플레이어 통합을 통한 고품질, 컨텍스트 인식 YouTube 비디오 자막 번역을 위한 고급 AI 기반 웹 애플리케이션.
   </p>

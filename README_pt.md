@@ -1,5 +1,5 @@
 <div align="center">
-  <h1>🎬 Tradutor IA de Legendas do YouTube 🌍</h1>
+  <h1>🎬 YTRossetaAI - Assista ao YouTube na sua língua 🌍</h1>
   <p>
     Uma aplicação web avançada alimentada por IA para tradução de alta qualidade e consciente do contexto de legendas de vídeos do YouTube com integração de player de vídeo em tempo real.
   </p>

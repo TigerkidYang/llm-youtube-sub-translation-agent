@@ -1,5 +1,5 @@
 <div align="center">
-  <h1>🎬 YouTube字幕AI翻訳ツール 🌍</h1>
+  <h1>🎬 YTRossetaAI - あなたの言語でYouTubeを視聴 🌍</h1>
   <p>
     リアルタイム動画プレーヤー統合による高品質でコンテキスト対応のYouTube動画字幕翻訳のための先進的なAI駆動Webアプリケーション。
   </p>

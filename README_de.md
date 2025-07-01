@@ -1,5 +1,5 @@
 <div align="center">
-  <h1>🎬 YouTube Untertitel AI-Übersetzer 🌍</h1>
+  <h1>🎬 YTRossetaAI - YouTube in Ihrer Sprache ansehen 🌍</h1>
   <p>
     Eine fortschrittliche KI-gestützte Webanwendung für hochwertige, kontextbewusste Übersetzung von YouTube-Video-Untertiteln mit Echtzeit-Videoplayer-Integration.
   </p>
